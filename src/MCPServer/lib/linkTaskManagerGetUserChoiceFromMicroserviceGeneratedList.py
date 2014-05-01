@@ -39,7 +39,7 @@ sys.path.append("/usr/lib/archivematica/archivematicaCommon")
 from dicts import ReplacementDict, ChoicesDict
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(filename="/tmp/archivematica.log",
+logging.basicConfig(filename="/var/log/archivematica/archivematica.log",
     level=logging.INFO)
 
 class linkTaskManagerGetUserChoiceFromMicroserviceGeneratedList(LinkTaskManager):

@@ -25,7 +25,7 @@ except pyes.exceptions.NoServerAvailable:
     subprocess.call(command_data)
 
     # note service was restarted in log
-    log_file = "/tmp/archivematica_elasticsearch_restarter.log"
+    log_file = "/var/log/archivematica/elasticsearch_restarter.log"
     with open(log_file, 'a') as logfile:
         log_message = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_message += ' Restarted ElasticSearch'
