@@ -23,6 +23,7 @@
 
 # Stdlib, alphabetical by import source
 import logging
+from logging.handlers import RotatingFileHandler
 from lxml import etree
 import os
 import sys
@@ -38,8 +39,8 @@ import databaseInterface
 sys.path.append("/usr/lib/archivematica/archivematicaCommon")
 from dicts import ReplacementDict, ChoicesDict
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(filename="/var/log/archivematica/archivematica.log",
+logger = logging.getLogger('archivematica.mcp.server')
+logger.addHandler(RotatingFileHandler("/var/log/archivematica/archivematica.log", maxBytes=4194304),
     level=logging.INFO)
 
 class linkTaskManagerGetUserChoiceFromMicroserviceGeneratedList(LinkTaskManager):

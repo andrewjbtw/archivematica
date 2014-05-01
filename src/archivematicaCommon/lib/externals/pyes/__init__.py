@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('archivematica.common')
 
 VERSION = (0, 19, 0)
 
