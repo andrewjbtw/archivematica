@@ -33,13 +33,16 @@ if __name__ == '__main__':
     
     #move everything to submission documentation
     for item in os.listdir(path):
-        if item == "metadata":
+        if item in archivematicaFunctions.OPTIONAL_FILES+["metadata"]:
             continue
         src = os.path.join(path, item)
         dst = os.path.join(path, "metadata/submissionDocumentation", item)
+        print 'Moving', src, 'to', dst
         shutil.move(src, dst)
     src = os.path.join(path, "metadata/submissionDocumentation", "data/objects")
     dst = path
-    shutil.move(src, dst)
+    if os.path.exists(src):
+        print 'Moving', src, 'to', dst
+        shutil.move(src, dst)
 
     archivematicaFunctions.create_structured_directory(path, manual_normalization=True, printing=True)
