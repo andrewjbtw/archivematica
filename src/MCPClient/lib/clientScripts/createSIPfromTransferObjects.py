@@ -26,15 +26,10 @@ import MySQLdb
 import os
 import sys
 sys.path.append("/usr/lib/archivematica/archivematicaCommon")
+import archivematicaFunctions
 import databaseInterface
 import databaseFunctions
-from archivematicaCreateStructuredDirectory import createStructuredDirectory
-from archivematicaCreateStructuredDirectory import createManualNormalizedDirectoriesList
-#def updateDB(dst, transferUUID):
-#    sql =  """UPDATE Transfers SET currentLocation='""" + dst + """' WHERE transferUUID='""" + transferUUID + """';"""
-#    databaseInterface.runSQL(sql)
 
-#moveSIP(src, dst, transferUUID, sharedDirectoryPath)
 
 if __name__ == '__main__':
     objectsDirectory = sys.argv[1]
@@ -47,11 +42,11 @@ if __name__ == '__main__':
 
     tmpSIPDir = os.path.join(processingDirectory, sipName) + "/"
     destSIPDir =  os.path.join(autoProcessSIPDirectory, sipName) + "/"
-    createStructuredDirectory(tmpSIPDir, createManualNormalizedDirectories=False)
+    archivematicaFunctions.create_structured_directory(tmpSIPDir, manual_normalization=False)
 
     #create row in SIPs table if one doesn't already exist
     lookup_path = destSIPDir.replace(sharedPath, '%sharedPath%')
-    sql = """SELECT sipUUID FROM SIPs WHERE currentPath = '""" + MySQLdb.escape_string(lookup_path) + "';"
+    sql = """SELECT sipUUID FROM SIPs WHERE currentPath = '""" + MySQLdb.escape_string(lookup_path) + """';"""
     rows = databaseInterface.queryAllSQL(sql)
     if len(rows) > 0:
         row = rows[0]
@@ -76,7 +71,7 @@ if __name__ == '__main__':
 
     #get the database list of files in the objects directory
     #for each file, confirm it's in the SIP objects directory, and update the current location/ owning SIP'
-    sql = """SELECT  fileUUID, currentLocation FROM Files WHERE removedTime = 0 AND currentLocation LIKE '\%transferDirectory\%objects%' AND transferUUID =  '""" + transferUUID + "'"
+    sql = """SELECT  fileUUID, currentLocation FROM Files WHERE removedTime = 0 AND currentLocation LIKE '\%transferDirectory\%objects%' AND transferUUID =  '""" + transferUUID + """'"""
     for row in databaseInterface.queryAllSQL(sql):
         fileUUID = row[0]
         currentPath = databaseFunctions.deUnicode(row[1])
@@ -87,10 +82,7 @@ if __name__ == '__main__':
         else:
             print >>sys.stderr, "file not found: ", currentSIPFilePath
 
-    for directory in createManualNormalizedDirectoriesList:
-        path = os.path.join(tmpSIPDir, directory)
-        if not os.path.isdir(path):
-            os.makedirs(path)
+    archivematicaFunctions.create_directories(archivematicaFunctions.MANUAL_NORMALIZATION_DIRECTORIES, basepath=tmpSIPDir)
 
     # Copy the JSON metadata file, if present;
     # this contains a serialized copy of DC metadata entered in the dashboard UI

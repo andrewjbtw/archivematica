@@ -26,28 +26,18 @@ import MySQLdb
 import os
 import sys
 sys.path.append("/usr/lib/archivematica/archivematicaCommon")
+import archivematicaFunctions
 import databaseInterface
 import databaseFunctions
-from archivematicaCreateStructuredDirectory import createStructuredDirectory
 
-#def updateDB(dst, transferUUID):
-#    sql =  """UPDATE Transfers SET currentLocation='""" + dst + """' WHERE transferUUID='""" + transferUUID + """';"""
-#    databaseInterface.runSQL(sql)
-
-#moveSIP(src, dst, transferUUID, sharedDirectoryPath)
 
 if __name__ == '__main__':
-    while False:
-        import time
-        time.sleep(10)
     objectsDirectory = sys.argv[1]
     transferName = sys.argv[2]
     transferUUID = sys.argv[3]
     processingDirectory = sys.argv[4]
     autoProcessSIPDirectory = sys.argv[5]
     sharedPath = sys.argv[6]
-    
-    
 
     for container in os.listdir(objectsDirectory):
         sipUUID = uuid.uuid4().__str__()
@@ -60,7 +50,7 @@ if __name__ == '__main__':
         
         tmpSIPDir = os.path.join(processingDirectory, sipName) + "/"
         destSIPDir =  os.path.join(autoProcessSIPDirectory, sipName) + "/"
-        createStructuredDirectory(tmpSIPDir, createManualNormalizedDirectories=True)
+        archivematicaFunctions.create_structured_directory(tmpSIPDir, manual_normalization=True)
         databaseFunctions.createSIP(destSIPDir.replace(sharedPath, '%sharedPath%'), sipUUID)
     
         #move the objects to the SIPDir
@@ -69,7 +59,7 @@ if __name__ == '__main__':
     
         #get the database list of files in the objects directory
         #for each file, confirm it's in the SIP objects directory, and update the current location/ owning SIP'
-        sql = """SELECT  fileUUID, currentLocation FROM Files WHERE removedTime = 0 AND currentLocation LIKE '\%transferDirectory\%objects/""" + container + """/%' AND transferUUID =  '""" + transferUUID + "'"
+        sql = """SELECT  fileUUID, currentLocation FROM Files WHERE removedTime = 0 AND currentLocation LIKE '\%transferDirectory\%objects/""" + container + """/%' AND transferUUID =  '""" + transferUUID + """'"""
         for row in databaseInterface.queryAllSQL(sql):
             fileUUID = row[0]
             currentPath = databaseFunctions.deUnicode(row[1]).replace('%transferDirectory%objects/' + container, '%transferDirectory%objects')
@@ -82,4 +72,3 @@ if __name__ == '__main__':
 
         #moveSIPTo autoProcessSIPDirectory
         shutil.move(tmpSIPDir, destSIPDir)
-    
