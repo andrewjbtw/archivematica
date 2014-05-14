@@ -641,6 +641,31 @@ def copy_from_transfer_sources(paths, relative_destination):
         return False, 'Files added successfully.'
 
 
+def copy_to_metadata(request):
+    """
+    Copy files from list `source_paths` to sip_uuid's metadata folder.
+
+    :param request: HttpRequest. POST body should contain sip_uuid and source_paths.
+    :param str sip_uuid: UUID of the SIP to put files in
+    :param list source_paths: List of files to be copied, base64 encoded, in the format 'source_location_uuid:full_path'
+    """
+    sip_uuid = request.POST.get('sip_uuid')
+    paths = request.POST.getlist('source_paths[]')
+    if not sip_uuid or not paths:
+        response = {
+            'error': True,
+            'message': 'sip_uuid and source_paths[] both required.'
+        }
+        return helpers.json_response(response)
+
+    sip = models.SIP.objects.get(uuid=sip_uuid)
+    paths = [base64.b64decode(p) for p in paths]
+    relative_destination = os.path.join(sip.currentpath, 'metadata').replace('%sharedPath%', '')
+    error, message = copy_from_transfer_sources(paths, relative_destination)
+    response = {'error': error, 'message': message}
+    return helpers.json_response(response)
+
+
 def download_ss(request):
     filepath = base64.b64decode(request.GET.get('filepath', '')).lstrip('/')
     logging.info('download filepath: %s', filepath)
