@@ -167,14 +167,24 @@ def storagesetup(request):
         storage_form.save()
         if "use_default" in request.POST:
             shared_path = helpers.get_server_config_value('sharedDirectory')
+            # Post first user & API key
+            user = User.objects.all()[0]
+            api_key = ApiKey.objects.get(user=user)
             # Create pipeline, tell it to use default setup
             try:
-                storage_service.create_pipeline(create_default_locations=True,
-                    shared_path=shared_path)
+                storage_service.create_pipeline(
+                    create_default_locations=True,
+                    shared_path=shared_path,
+                    api_username=user.username,
+                    api_key=api_key.key,
+                )
             except Exception:
                 messages.warning(request, 'Error creating pipeline: is the storage server running? Please contact an administrator.')
         else:
-            # Storage service manually set up, just register Pipeline if possible
+            # Storage service manually set up, just register Pipeline if
+            # possible. Do not provide additional information about the shared
+            # path, or API, as this is probably being set up in the storage
+            # service manually.
             try:
                 storage_service.create_pipeline()
             except Exception:
