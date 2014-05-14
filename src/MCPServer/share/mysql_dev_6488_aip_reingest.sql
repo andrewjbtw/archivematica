@@ -23,6 +23,12 @@ UPDATE MicroServiceChainLinks SET microserviceGroup='Normalize' WHERE pk IN ('db
 UPDATE MicroServiceChainLinks SET microserviceGroup='Generate AIP METS' WHERE pk IN ('ccf8ec5c-3a9a-404a-a7e7-8f567d3b36a0', '53e14112-21bb-46f0-aed3-4e8c2de6678f', '88807d68-062e-4d1a-a2d5-2d198c88d8ca');
 UPDATE MicroServiceChainLinks SET microserviceGroup='Add final metadata' WHERE pk IN ('c168f1ee-5d56-4188-8521-09f0c5475133', 'f060d17f-2376-4c0b-a346-b486446e46ce', '54b73077-a062-41cc-882c-4df1eba447d9', 'eeb23509-57e2-4529-8857-9d62525db048');
 UPDATE MicroServiceChainLinks SET microserviceGroup='Transcribe SIP contents' WHERE pk IN ('7079be6d-3a25-41e6-a481-cee5f352fe6e', '2900f6d8-b64c-4f2a-8f7f-bb60a57394f6', '77a7fa46-92b9-418e-aa88-fbedd4114c9f');
+-- Update Watched Directory
+UPDATE WatchedDirectories SET watchedDirectoryPath = '%watchDirectoryPath%system/reingestAIP/' WHERE watchedDirectoryPath='%watchDirectoryPath%system/createDIPFromAIP/';
+-- Rename DIPfromAIP
+UPDATE TasksConfigs SET description = 'Approve AIP reingest' WHERE pk='c450501a-251f-4de7-acde-91c47cf62e36';
+UPDATE MicroServiceChains SET description='Approve AIP reingest' WHERE startingLink='77c722ea-5a8f-48c0-ae82-c66a3fa8ca77';
+UPDATE MicroServiceChains SET description='AIP reingest approval chain' WHERE startingLink='9520386f-bb6d-4fb9-a6b6-5845ef39375f';
 -- Move Verify Checksums to after processing metadata dir
 SET @verifychecksumMSCL = '88807d68-062e-4d1a-a2d5-2d198c88d8ca' COLLATE utf8_unicode_ci;
 UPDATE MicroServiceChainLinks SET microserviceGroup='Prepare AIP' WHERE pk IN (@verifychecksumMSCL, 'f1e286f9-4ec7-4e19-820c-dae7b8ea7d09');
