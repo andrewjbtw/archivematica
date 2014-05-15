@@ -4,11 +4,11 @@ import argparse
 import os
 import sys
 
-path = '/usr/share/archivematica/dashboard'
-if path not in sys.path:
-    sys.path.append(path)
+sys.path.append('/usr/share/archivematica/dashboard')
 os.environ['DJANGO_SETTINGS_MODULE'] = 'settings.common'
 from main import models
+sys.path.append("/usr/lib/archivematica/archivematicaCommon")
+import storageService as storage_service
 
 REJECTED = 'reject'
 FAILED = 'fail'
@@ -18,6 +18,14 @@ def main(fail_type, sip_uuid):
     file_uuids = models.File.objects.filter(sip=sip_uuid).values_list('uuid', flat=True)
     print 'Allow files in this SIP to be arranged. UUIDs:', file_uuids
     models.SIPArrange.objects.filter(file_uuid__in=file_uuids).delete()
+
+    # Update storage service that reingest failed
+    api = storage_service._storage_api()
+    try:
+        api.file(sip_uuid).patch({'reingest': None})
+    except Exception:
+        # Ignore errors, as this may not be reingest
+        pass
     return 0
 
 if __name__ == '__main__':

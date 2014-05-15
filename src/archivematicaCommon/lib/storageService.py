@@ -339,7 +339,7 @@ def request_reingest(package_uuid, reingest_type):
         response = api.file(package_uuid).reingest.post(api_request)
     except (slumber.exceptions.HttpClientError, slumber.exceptions.HttpServerError) as e:
         logging.exception("Unable to reingest {}".format(package_uuid))
-        return {'error': True, 'message': e.content}
+        return  e.response.json() or {'error': True}
     except requests.ConnectionError as e:
         logging.exception("Could not connect to storage service")
         return {'error': True, 'message': 'Could not connect to storage service'}
