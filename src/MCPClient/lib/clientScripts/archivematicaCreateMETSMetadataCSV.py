@@ -43,6 +43,7 @@ CSVMetadata = (simpleMetadataCSVkey, simpleMetadataCSV,
 
 
 def parseMetadata(SIPPath):
+    # Parse the metadata.csv files from the transfers
     transfersPath = os.path.join(SIPPath, "objects", "metadata", "transfers")
     if not os.path.isdir(transfersPath):
         return
@@ -51,16 +52,23 @@ def parseMetadata(SIPPath):
                                            transfer, "metadata.csv")
         if os.path.isfile(metadataCSVFilePath):
             try:
-                parseMetadtaCSV(metadataCSVFilePath)
-            except Exception as inst:
-                print >>sys.stderr, type(inst)     # the exception instance
-                print >>sys.stderr, inst.args
+                parseMetadataCSV(metadataCSVFilePath)
+            except Exception:
                 print >>sys.stderr, "error parsing: ", metadataCSVFilePath
-                traceback.print_exc(file=sys.stdout)
+                traceback.print_exc(file=sys.stderr)
                 sharedVariablesAcrossModules.globalErrorCount += 1
+    # Parse the SIP's metadata.csv if it exists
+    metadataCSVFilePath = os.path.join(SIPPath, 'objects', 'metadata', 'metadata.csv')
+    if os.path.isfile(metadataCSVFilePath):
+        try:
+            parseMetadataCSV(metadataCSVFilePath)
+        except Exception:
+            print >>sys.stderr, "error parsing: ", metadataCSVFilePath
+            traceback.print_exc(file=sys.stderr)
+            sharedVariablesAcrossModules.globalErrorCount += 1
 
 
-def parseMetadtaCSV(metadataCSVFilePath):
+def parseMetadataCSV(metadataCSVFilePath):
     # use universal newline mode to support unusual newlines, like \r
     with open(metadataCSVFilePath, 'rbU') as f:
         reader = csv.reader(f)
@@ -88,3 +96,7 @@ def parseMetadtaCSV(metadataCSVFilePath):
                     if directory.endswith("/"):
                         directory = directory[:-1]
                     compoundMetadataCSV[directory] = row
+
+
+if __name__ == '__main__':
+    parseMetadata(sys.argv[1])
