@@ -282,6 +282,30 @@ class FileFormatVersion(models.Model):
     def __unicode__(self):
         return u'{file} is {format}'.format(file=self.file_uuid, format=self.format_version)
 
+class FilesIDs(models.Model):
+    id = models.IntegerField(primary_key=True, db_column='pk')
+    file_uuid = models.ForeignKey(File, db_column='fileUUID', to_field='uuid', null=True, blank=True)
+    format_name = models.TextField(db_column='formatName')
+    format_version = models.TextField(db_column='formatVersion')
+    format_registry_name = models.TextField(db_column='formatRegistryName')
+    format_registry_key = models.TextField(db_column='formatRegistryKey')
+
+    class Meta:
+        db_table = u'FilesIDs'
+
+    def __unicode__(self):
+        return u'{f.format_name} {f.format_version} for {f.file_uuid}'.format(f=self)
+
+
+class FPCommandOutput(models.Model):
+    file_uuid = models.ForeignKey(File, db_column='fileUUID', to_field='uuid')
+    content = models.TextField(db_column='content')
+    rule = models.ForeignKey('fpr.FPRule', db_column='ruleUUID', to_field='uuid')
+
+    class Meta:
+        db_table = u'FPCommandOutput'
+
+
 class Task(models.Model):
     taskuuid = models.CharField(max_length=36, primary_key=True, db_column='taskUUID')
     job = models.ForeignKey(Job, db_column='jobuuid', to_field = 'jobuuid')
