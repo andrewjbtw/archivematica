@@ -15,7 +15,7 @@ DELETE FROM MicroServiceChainLinksExitCodes WHERE microServiceChainLink IN (@d1,
 DELETE FROM MicroServiceChainLinks WHERE pk IN (@d1, @d2, @d3, @d4);
 
 -- Update microserviceGroups
-UPDATE MicroServiceChainLinks SET microserviceGroup='Reingest AIP' WHERE pk IN ('9520386f-bb6d-4fb9-a6b6-5845ef39375f', '77c722ea-5a8f-48c0-ae82-c66a3fa8ca77', 'c103b2fb-9a6b-4b68-8112-b70597a6cd14', '60b0e812-ebbe-487e-810f-56b1b6fdd819', '31fc3f66-34e9-478f-8d1b-c29cd0012360', 'e4e19c32-16cc-4a7f-a64d-a1f180bdb164', '83d5e887-6f7c-48b0-bd81-e3f00a9da772', '29dece8e-55a4-4f2c-b4c2-365ab6376ceb', '635ba89d-0ad6-4fc9-acc3-e6069dffdcd5');
+UPDATE MicroServiceChainLinks SET microserviceGroup='Reingest AIP' WHERE pk IN ('9520386f-bb6d-4fb9-a6b6-5845ef39375f', '77c722ea-5a8f-48c0-ae82-c66a3fa8ca77', 'c103b2fb-9a6b-4b68-8112-b70597a6cd14', '60b0e812-ebbe-487e-810f-56b1b6fdd819', '31fc3f66-34e9-478f-8d1b-c29cd0012360', 'e4e19c32-16cc-4a7f-a64d-a1f180bdb164', '83d5e887-6f7c-48b0-bd81-e3f00a9da772');
 UPDATE MicroServiceChainLinks SET microserviceGroup='Process submission documentation' WHERE pk IN ('576f1f43-a130-4c15-abeb-c272ec458d33');
 UPDATE MicroServiceChainLinks SET microserviceGroup='Process metadata directory' WHERE pk IN ('ee438694-815f-4b74-97e1-8e7dde2cc6d5', '75fb5d67-5efa-4232-b00b-d85236de0d3f');
 UPDATE MicroServiceChainLinks SET microserviceGroup='Process manually normalized files' WHERE pk IN ('ab0d3815-a9a3-43e1-9203-23a40c00c551', '91ca6f1f-feb5-485d-99d2-25eed195e330', '10c40e41-fb10-48b5-9d01-336cd958afe8', 'e76aec15-5dfa-4b14-9405-735863e3a6fa', '9e9b522a-77ab-4c17-ab08-5a4256f49d59', 'a1b65fe3-9358-479b-93b9-68f2b5e71b2b', '78b7adff-861d-4450-b6dd-3fabe96a849e');
@@ -135,9 +135,16 @@ DELETE FROM MicroServiceChainLinksExitCodes WHERE microServiceChainLink=@d1;
 DELETE FROM MicroServiceChainLinks WHERE pk=@d1;
 
 -- Add processingMCP
+-- Redirect to typical normalization node
 INSERT INTO MicroServiceChainLinks(pk, microserviceGroup, defaultExitMessage, currentTask, defaultNextChainLink) values ('ff516d0b-2bba-414c-88d4-f3575ebf050a', 'Reingest AIP', 'Failed', 'f89b9e0f-8789-4292-b5d0-4a330c0205e1', '7d728c39-395f-4892-8193-92f086c0546f');
-INSERT INTO MicroServiceChainLinksExitCodes (pk, microServiceChainLink, exitCode, nextMicroServiceChainLink, exitMessage) VALUES ('545f54cc-475c-4980-9dff-8f7e65ebaeba', 'ff516d0b-2bba-414c-88d4-f3575ebf050a', 0, '29dece8e-55a4-4f2c-b4c2-365ab6376ceb', 'Completed successfully');
+INSERT INTO MicroServiceChainLinksExitCodes (pk, microServiceChainLink, exitCode, nextMicroServiceChainLink, exitMessage) VALUES ('545f54cc-475c-4980-9dff-8f7e65ebaeba', 'ff516d0b-2bba-414c-88d4-f3575ebf050a', 0, '5d6a103c-9a5d-4010-83a8-6f4c61eb1478', 'Completed successfully');
 UPDATE MicroServiceChainLinksExitCodes SET nextMicroServiceChainLink='ff516d0b-2bba-414c-88d4-f3575ebf050a' WHERE microServiceChainLink IN ('83d5e887-6f7c-48b0-bd81-e3f00a9da772', 'e4e19c32-16cc-4a7f-a64d-a1f180bdb164') AND exitCode=0;
+
+-- Don't use weird normalization node, remove unitVars for that
+SET @d1 = '29dece8e-55a4-4f2c-b4c2-365ab6376ceb' COLLATE utf8_unicode_ci;
+SET @d2 = '635ba89d-0ad6-4fc9-acc3-e6069dffdcd5' COLLATE utf8_unicode_ci;
+DELETE FROM MicroServiceChainLinksExitCodes WHERE microServiceChainLink IN (@d1, @d2);
+DELETE FROM MicroServiceChainLinks WHERE pk IN (@d1, @d2);
 
 -- Move MD reminder to start of submission docs
 SET @mdReminderMSCL = '54b73077-a062-41cc-882c-4df1eba447d9' COLLATE utf8_unicode_ci;
