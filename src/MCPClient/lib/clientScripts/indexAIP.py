@@ -86,6 +86,12 @@ def index_aip():
         if rows:
             aips_in_aic = rows[0][0]
 
+    # Delete ES index before creating new one if reingesting
+    if 'REIN' in sip_type:
+        count = elasticSearchFunctions.delete_aip(sip_uuid)
+        print 'Deleted', count, 'outdated entry for AIP with UUID', sip_uuid, ' from archival storage'
+
+    # Index AIP
     elasticSearchFunctions.connect_and_index_aip(
         sip_uuid,
         sip_name,
@@ -93,6 +99,7 @@ def index_aip():
         mets_path,
         size=aip_info['size'],
         aips_in_aic=aips_in_aic)
+    print 'Indexed AIP {} (UUID {}) at path {} from METS file {}'.format(sip_name, sip_uuid, aip_info['current_full_path'], mets_path)
 
     if not is_uncompressed_aip:
         os.remove(mets_path)
