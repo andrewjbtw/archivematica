@@ -28,6 +28,7 @@ import os
 import sys
 sys.path.append("/usr/lib/archivematica/archivematicaCommon")
 import databaseInterface
+from dicts import ReplacementDict
 import lxml.etree as etree
 
 
@@ -87,32 +88,11 @@ class unitDIP(unit):
 
 
     def getReplacementDic(self, target):
-        # self.currentPath = currentPath.__str__()
-        # self.UUID = uuid.uuid4().__str__()
-        #Pre do some variables, that other variables rely on, because dictionaries don't maintain order
-        SIPUUID = self.UUID
-        if self.currentPath.endswith("/"):
-            SIPName = os.path.basename(self.currentPath[:-1]).replace("-" + SIPUUID, "")
-        else:
-            SIPName = os.path.basename(self.currentPath).replace("-" + SIPUUID, "")
-        SIPDirectory = self.currentPath.replace(archivematicaMCP.config.get('MCPServer', "sharedDirectory"), "%sharedPath%")
-        relativeDirectoryLocation = target.replace(archivematicaMCP.config.get('MCPServer', "sharedDirectory"), "%sharedPath%")
-
-
-        ret = { \
-        "%SIPLogsDirectory%": SIPDirectory + "logs/", \
-        "%SIPObjectsDirectory%": SIPDirectory + "objects/", \
-        "%SIPDirectory%": SIPDirectory, \
-        "%SIPDirectoryBasename%": os.path.basename(os.path.abspath(SIPDirectory)), \
-        "%relativeLocation%": target.replace(self.currentPath, relativeDirectoryLocation, 1), \
-        "%processingDirectory%": archivematicaMCP.config.get('MCPServer', "processingDirectory"), \
-        "%checksumsNoExtention%":archivematicaMCP.config.get('MCPServer', "checksumsNoExtention"), \
-        "%watchDirectoryPath%":archivematicaMCP.config.get('MCPServer', "watchDirectoryPath"), \
-        "%rejectedDirectory%":archivematicaMCP.config.get('MCPServer', "rejectedDirectory"), \
-        "%SIPUUID%":SIPUUID, \
-        "%SIPName%":SIPName, \
-        "%unitType%":"DIP" \
-        }
+        ret = ReplacementDict.frommodel(
+            type_='sip',
+            sip=self.UUID
+        )
+        ret["%unitType%"] = "DIP"
         return ret
 
     def xmlify(self):
