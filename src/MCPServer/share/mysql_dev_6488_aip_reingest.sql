@@ -135,10 +135,11 @@ DELETE FROM MicroServiceChainLinksExitCodes WHERE microServiceChainLink=@d1;
 DELETE FROM MicroServiceChainLinks WHERE pk=@d1;
 
 -- Add processingMCP
+INSERT INTO MicroServiceChainLinks(pk, microserviceGroup, defaultExitMessage, currentTask, defaultNextChainLink) VALUES ('ff516d0b-2bba-414c-88d4-f3575ebf050a', 'Reingest AIP', 'Failed', 'f89b9e0f-8789-4292-b5d0-4a330c0205e1', '7d728c39-395f-4892-8193-92f086c0546f');
+INSERT INTO MicroServiceChainLinksExitCodes (pk, microServiceChainLink, exitCode, nextMicroServiceChainLink, exitMessage) VALUES ('545f54cc-475c-4980-9dff-8f7e65ebaeba', 'ff516d0b-2bba-414c-88d4-f3575ebf050a', 0, '60b0e812-ebbe-487e-810f-56b1b6fdd819', 'Completed successfully');
+UPDATE MicroServiceChainLinksExitCodes SET nextMicroServiceChainLink='ff516d0b-2bba-414c-88d4-f3575ebf050a' WHERE microServiceChainLink='c103b2fb-9a6b-4b68-8112-b70597a6cd14';
 -- Redirect to typical normalization node
-INSERT INTO MicroServiceChainLinks(pk, microserviceGroup, defaultExitMessage, currentTask, defaultNextChainLink) values ('ff516d0b-2bba-414c-88d4-f3575ebf050a', 'Reingest AIP', 'Failed', 'f89b9e0f-8789-4292-b5d0-4a330c0205e1', '7d728c39-395f-4892-8193-92f086c0546f');
-INSERT INTO MicroServiceChainLinksExitCodes (pk, microServiceChainLink, exitCode, nextMicroServiceChainLink, exitMessage) VALUES ('545f54cc-475c-4980-9dff-8f7e65ebaeba', 'ff516d0b-2bba-414c-88d4-f3575ebf050a', 0, '5d6a103c-9a5d-4010-83a8-6f4c61eb1478', 'Completed successfully');
-UPDATE MicroServiceChainLinksExitCodes SET nextMicroServiceChainLink='ff516d0b-2bba-414c-88d4-f3575ebf050a' WHERE microServiceChainLink IN ('83d5e887-6f7c-48b0-bd81-e3f00a9da772', 'e4e19c32-16cc-4a7f-a64d-a1f180bdb164') AND exitCode=0;
+UPDATE MicroServiceChainLinksExitCodes SET nextMicroServiceChainLink='5d6a103c-9a5d-4010-83a8-6f4c61eb1478' WHERE microServiceChainLink IN ('83d5e887-6f7c-48b0-bd81-e3f00a9da772', 'e4e19c32-16cc-4a7f-a64d-a1f180bdb164') AND exitCode=0;
 
 -- Don't use weird normalization node, remove unitVars for that
 SET @d1 = '29dece8e-55a4-4f2c-b4c2-365ab6376ceb' COLLATE utf8_unicode_ci;
