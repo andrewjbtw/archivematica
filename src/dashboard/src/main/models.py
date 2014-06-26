@@ -33,6 +33,15 @@ from django_extensions.db.fields import UUIDField
 from contrib import utils
 import main
 
+METADATA_STATUS_ORIGINAL = 'ORIGINAL'
+METADATA_STATUS_REINGEST = 'REINGEST'
+METADATA_STATUS_UPDATED = 'UPDATED'
+METADATA_STATUS = (
+    (METADATA_STATUS_ORIGINAL, 'original'),
+    (METADATA_STATUS_REINGEST, 'parsed from reingest'),
+    (METADATA_STATUS_UPDATED, 'updated'),  # Might be updated for both, on rereingest
+)
+
 class UUIDPkField(UUIDField):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('max_length', 36)
@@ -91,8 +100,8 @@ class Access(models.Model):
 
 class DublinCore(models.Model):
     id = models.AutoField(primary_key=True, db_column='pk')
-    metadataappliestotype = models.CharField(max_length=36, db_column='metadataAppliesToType')
-    metadataappliestoidentifier = models.CharField(max_length=36, blank=True, null=True, db_column='metadataAppliesToidentifier')
+    metadataappliestotype = models.ForeignKey('MetadataAppliesToType', db_column='metadataAppliesToType')
+    metadataappliestoidentifier = models.CharField(max_length=36, blank=True, null=True, default=None, db_column='metadataAppliesToidentifier')
     title = models.CharField(max_length=255, db_column='title', blank=True, null=True)
     is_part_of = models.CharField(verbose_name='Part of AIC', help_text='Optional: leave blank if unsure', max_length=255, db_column='isPartOf', blank=True, null=True)
     creator = models.CharField(max_length=255, db_column='creator', blank=True, null=True)
@@ -109,6 +118,7 @@ class DublinCore(models.Model):
     language = models.CharField(help_text='Use ISO 639', max_length=255, db_column='language', blank=True, null=True)
     coverage = models.CharField(max_length=255, db_column='coverage', blank=True, null=True)
     rights = models.TextField(db_column='rights', blank=True, null=True)
+    status = models.CharField(db_column='status', max_length=8, choices=METADATA_STATUS, default=METADATA_STATUS_ORIGINAL)
 
     class Meta:
         db_table = u'Dublincore'
@@ -127,6 +137,9 @@ class MetadataAppliesToType(models.Model):
 
     class Meta:
         db_table = u'MetadataAppliesToTypes'
+
+    def __unicode__(self):
+        return unicode(self.description)
 
 
 class Event(models.Model):

@@ -217,6 +217,9 @@ DELETE FROM MicroServiceChains WHERE pk IN ('2256d500-a26e-438d-803d-3ffe17b8caf
 DELETE FROM MicroServiceChainLinksExitCodes WHERE microServiceChainLink IN (@d1, @d2, @d3, @d4, @d5, @d6, @d7, @d8, @d9, @d10);
 DELETE FROM MicroServiceChainLinks WHERE pk IN (@d1, @d2, @d3, @d4, @d5, @d6, @d7, @d8, @d9, @d10);
 
+-- Update metadata
+ALTER TABLE Dublincore ADD status varchar(8) DEFAULT 'ORIGINAL' COLLATE utf8_unicode_ci NOT NULL;
+
 
 -- Delete all TasksConfigs that don't have MicroServiceChainLinks pointing at them
 DELETE FROM TasksConfigs USING TasksConfigs LEFT OUTER JOIN MicroServiceChainLinks ON currentTask=TasksConfigs.pk WHERE MicroServiceChainLinks.pk is NULL;

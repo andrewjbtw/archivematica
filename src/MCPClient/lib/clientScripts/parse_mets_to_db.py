@@ -193,6 +193,49 @@ def main():
             relatedEventUUID=file_info['derivation_event'],
         )
 
+    # Delete existing DC
+    md_type_sip = models.MetadataAppliesToType.objects.get(description='SIP')
+    models.DublinCore.objects.filter(metadataappliestoidentifier=sip_uuid, metadataappliestotype=md_type_sip).delete()
+    # Parse DC
+    root = etree.parse(mets_path)
+    dmds = root.xpath('mets:dmdSec/mets:mdWrap[@MDTYPE="DC"]/parent::*', namespaces=ns.NSMAP)
+    # Find which DC to parse into DB
+    if len(dmds) > 0:
+        DC_TERMS_MATCHING = {
+            'title': 'title',
+            'creator': 'creator',
+            'subject': 'subject',
+            'description': 'description',
+            'publisher': 'publisher',
+            'contributor': 'contributor',
+            'date': 'date',
+            'type': 'type',
+            'format': 'format',
+            'identifier': 'identifier',
+            'source': 'source',
+            'relation': 'relation',
+            'language': 'language',
+            'coverage': 'coverage',
+            'rights': 'rights',
+            'isPartOf': 'is_part_of',
+        }
+        # Want most recently updated
+        dmds = sorted(dmds, key=lambda e: e.get('CREATED'))
+        dc_xml = dmds[-1].find('mets:mdWrap/mets:xmlData/dcterms:dublincore', namespaces=ns.NSMAP)
+        dc_model = models.DublinCore(
+            metadataappliestoidentifier=sip_uuid,
+            metadataappliestotype=md_type_sip,
+            status=models.METADATA_STATUS_REINGEST,
+        )
+        print('Dublin Core:')
+        for elem in dc_xml:
+            tag = elem.tag.replace(ns.dctermsBNS, '', 1)
+            print(tag, elem.text)
+            setattr(dc_model, DC_TERMS_MATCHING[tag], elem.text)
+        print('status', dc_model.status)
+        dc_model.save()
+        print('status', dc_model.status)
+
     # Update processingMCP
     processing_path = os.path.join(sip_path, 'processingMCP.xml')
     update_default_config(processing_path)
