@@ -380,6 +380,7 @@ class RightsStatement(models.Model):
         ('Other', 'Other')
     )
     rightsbasis = models.CharField(db_column='rightsBasis', choices=RIGHTS_BASIS_CHOICES, max_length=64, verbose_name='Basis', default='Copyright')
+    status = models.CharField(db_column='status', max_length=8, choices=METADATA_STATUS, default=METADATA_STATUS_ORIGINAL)
 
     class Meta:
         db_table = u'RightsStatement'

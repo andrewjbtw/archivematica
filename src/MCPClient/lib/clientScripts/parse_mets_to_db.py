@@ -236,6 +236,34 @@ def main():
         dc_model.save()
         print('status', dc_model.status)
 
+    # Delete existing PREMIS Rights
+    models.RightsStatement.objects.filter(metadataappliestoidentifier=sip_uuid, metadataappliestotype=md_type_sip).delete()
+    # TODO delete all the other rights things?
+
+    amds = root.xpath('mets:amdSec/mets:rightsMD/parent::*', namespaces=ns.NSMAP)
+    if amds:
+        amd = amds[0]
+        # Get rightsMDs
+        # METS from original AIPs will not have @STATUS, and reingested AIPs will have only one @STATUS that is 'updated'
+        rights_stmts = amd.xpath('mets:rightsMD[not(@STATUS) or @STATUS="updated"]/mets:mdWrap[@MDTYPE="PREMIS:RIGHTS"]/*/premis:rightsStatement', namespaces=ns.NSMAP)
+
+        # Parse to DB
+        for statement in rights_stmts:
+            id_type = statement.findtext('premis:rightsStatementIdentifier/premis:rightsStatementIdentifierType', namespaces=ns.NSMAP)
+            id_value = statement.findtext('premis:rightsStatementIdentifier/premis:rightsStatementIdentifierValue', namespaces=ns.NSMAP)
+            rights_basis = statement.findtext('premis:rightsBasis', namespaces=ns.NSMAP)
+            print('rights_basis', rights_basis)
+            rights = models.RightsStatement(
+                metadataappliestotype=md_type_sip,
+                metadataappliestoidentifier=sip_uuid,
+                rightsstatementidentifiertype=id_type,
+                rightsstatementidentifiervalue=id_value,
+                rightsbasis=rights_basis,
+                status=models.METADATA_STATUS_REINGEST,
+            )
+            rights.save()
+            # TODO parse more than just RightsStatement
+
     # Update processingMCP
     processing_path = os.path.join(sip_path, 'processingMCP.xml')
     update_default_config(processing_path)
