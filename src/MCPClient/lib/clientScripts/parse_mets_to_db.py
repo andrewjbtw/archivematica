@@ -237,8 +237,12 @@ def main():
         print('status', dc_model.status)
 
     # Delete existing PREMIS Rights
-    models.RightsStatement.objects.filter(metadataappliestoidentifier=sip_uuid, metadataappliestotype=md_type_sip).delete()
+    del_rights = models.RightsStatement.objects.filter(metadataappliestoidentifier=sip_uuid, metadataappliestotype=md_type_sip)
     # TODO delete all the other rights things?
+    models.RightsStatementCopyright.objects.filter(rightsstatement__in=del_rights).delete()
+
+    models.RightsStatementRightsGranted.objects.filter(rightsstatement__in=del_rights).delete()
+    del_rights.delete()
 
     amds = root.xpath('mets:amdSec/mets:rightsMD/parent::*', namespaces=ns.NSMAP)
     if amds:
@@ -253,7 +257,7 @@ def main():
             id_value = statement.findtext('premis:rightsStatementIdentifier/premis:rightsStatementIdentifierValue', namespaces=ns.NSMAP)
             rights_basis = statement.findtext('premis:rightsBasis', namespaces=ns.NSMAP)
             print('rights_basis', rights_basis)
-            rights = models.RightsStatement(
+            rights = models.RightsStatement.objects.create(
                 metadataappliestotype=md_type_sip,
                 metadataappliestoidentifier=sip_uuid,
                 rightsstatementidentifiertype=id_type,
@@ -261,8 +265,74 @@ def main():
                 rightsbasis=rights_basis,
                 status=models.METADATA_STATUS_REINGEST,
             )
-            rights.save()
             # TODO parse more than just RightsStatement
+            if rights_basis == 'Copyright':
+                cr_status = statement.findtext('.//premis:copyrightStatus', namespaces=ns.NSMAP)
+                cr_jurisdiction = statement.findtext('.//premis:copyrightJurisdiction', namespaces=ns.NSMAP)
+                cr_det_date = statement.findtext('.//premis:copyrightStatusDeterminationDate', namespaces=ns.NSMAP)
+                cr_start_date = statement.findtext('.//premis:copyrightApplicableDates/premis:startDate', namespaces=ns.NSMAP)
+                cr_end_date = statement.findtext('.//premis:copyrightApplicableDates/premis:endDate', namespaces=ns.NSMAP)
+                cr_end_open = False
+                if cr_end_date == 'OPEN':
+                    cr_end_open = True
+                    cr_end_date = None
+                cr = models.RightsStatementCopyright.objects.create(
+                    rightsstatement=rights,
+                    copyrightstatus=cr_status,
+                    copyrightjurisdiction=cr_jurisdiction,
+                    copyrightstatusdeterminationdate=cr_det_date,
+                    copyrightapplicablestartdate=cr_start_date,
+                    copyrightapplicableenddate=cr_end_date,
+                    copyrightenddateopen=cr_end_open,
+                )
+                cr_id_type = statement.findtext('.//premis:copyrightDocumentationIdentifierType', namespaces=ns.NSMAP)
+                cr_id_value = statement.findtext('.//premis:copyrightDocumentationIdentifierValue', namespaces=ns.NSMAP)
+                cr_id_role = statement.findtext('.//premis:copyrightDocumentationRole', namespaces=ns.NSMAP)
+                models.RightsStatementCopyrightDocumentationIdentifier.objects.create(
+                    rightscopyright=cr,
+                    copyrightdocumentationidentifiertype=cr_id_type,
+                    copyrightdocumentationidentifiervalue=cr_id_value,
+                    copyrightdocumentationidentifierrole=cr_id_role,
+                )
+                cr_note = statement.findtext('.//premis:copyrightNote', namespaces=ns.NSMAP)
+                models.RightsStatementCopyrightNote.objects.create(
+                    rightscopyright=cr,
+                    copyrightnote=cr_note,
+                )
+
+            # TODO Do all RightsStatement's have a RightsStatementRightsGranted?
+            rights_act = statement.findtext('.//premis:rightsGranted/premis:act', namespaces=ns.NSMAP)
+            rights_start_date = statement.findtext('.//premis:rightsGranted/premis:termOfRestriction/premis:startDate', namespaces=ns.NSMAP)
+            rights_end_date = statement.findtext('.//premis:rightsGranted/premis:termOfRestriction/premis:endDate', namespaces=ns.NSMAP)
+            rights_end_open = False
+            if rights_end_date == 'OPEN':
+                rights_end_date = None
+                rights_end_open = True
+            print('rights_act', rights_act)
+            print('rights_start_date', rights_start_date)
+            print('rights_end_date', rights_end_date)
+            print('rights_end_open', rights_end_open)
+            rights_granted = models.RightsStatementRightsGranted.objects.create(
+                rightsstatement=rights,
+                act=rights_act,
+                startdate=rights_start_date,
+                enddate=rights_end_date,
+                enddateopen=rights_end_open,
+            )
+
+            rights_note = statement.findtext('.//premis:rightsGranted/premis:rightsGrantedNote', namespaces=ns.NSMAP)
+            print('rights_note', rights_note)
+            models.RightsStatementRightsGrantedNote.objects.create(
+                rightsgranted=rights_granted,
+                rightsgrantednote=rights_note,
+            )
+
+            rights_restriction = statement.findtext('.//premis:rightsGranted/premis:restriction', namespaces=ns.NSMAP)
+            print('rights_restriction', rights_restriction)
+            models.RightsStatementRightsGrantedRestriction.objects.create(
+                rightsgranted=rights_granted,
+                restriction=rights_restriction,
+            )
 
     # Update processingMCP
     processing_path = os.path.join(sip_path, 'processingMCP.xml')
