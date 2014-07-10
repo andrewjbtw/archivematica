@@ -371,18 +371,22 @@ def createTechMD(fileUUID):
     sql = "SELECT sourceFileUUID, derivedFileUUID, relatedEventUUID FROM Derivations WHERE sourceFileUUID = '" + fileUUID + "';"
     c, sqlLock = databaseInterface.querySQL(sql)
     row = c.fetchone()
-    while row != None:
-        relationship = etree.SubElement(object, ns.premisBNS + "relationship")
-        etree.SubElement(relationship, ns.premisBNS + "relationshipType").text = "derivation"
-        etree.SubElement(relationship, ns.premisBNS + "relationshipSubType").text = "is source of"
+    while row is not None:
+        _, derived_file, related_event = row
+        # Events are generated for preservation, but not for access/thumbnail
+        # normalization.  Only generate derivations for preservation objects.
+        if related_event:
+            relationship = etree.SubElement(object, ns.premisBNS + "relationship")
+            etree.SubElement(relationship, ns.premisBNS + "relationshipType").text = "derivation"
+            etree.SubElement(relationship, ns.premisBNS + "relationshipSubType").text = "is source of"
 
-        relatedObjectIdentification = etree.SubElement(relationship, ns.premisBNS + "relatedObjectIdentification")
-        etree.SubElement(relatedObjectIdentification, ns.premisBNS + "relatedObjectIdentifierType").text = "UUID"
-        etree.SubElement(relatedObjectIdentification, ns.premisBNS + "relatedObjectIdentifierValue").text = row[1]
+            relatedObjectIdentification = etree.SubElement(relationship, ns.premisBNS + "relatedObjectIdentification")
+            etree.SubElement(relatedObjectIdentification, ns.premisBNS + "relatedObjectIdentifierType").text = "UUID"
+            etree.SubElement(relatedObjectIdentification, ns.premisBNS + "relatedObjectIdentifierValue").text = derived_file
 
-        relatedEventIdentification = etree.SubElement(relationship, ns.premisBNS + "relatedEventIdentification")
-        etree.SubElement(relatedEventIdentification, ns.premisBNS + "relatedEventIdentifierType").text = "UUID"
-        etree.SubElement(relatedEventIdentification, ns.premisBNS + "relatedEventIdentifierValue").text = row[2]
+            relatedEventIdentification = etree.SubElement(relationship, ns.premisBNS + "relatedEventIdentification")
+            etree.SubElement(relatedEventIdentification, ns.premisBNS + "relatedEventIdentifierType").text = "UUID"
+            etree.SubElement(relatedEventIdentification, ns.premisBNS + "relatedEventIdentifierValue").text = related_event
 
         row = c.fetchone()
     sqlLock.release()
@@ -390,19 +394,22 @@ def createTechMD(fileUUID):
     sql = "SELECT sourceFileUUID, derivedFileUUID, relatedEventUUID FROM Derivations WHERE derivedFileUUID = '" + fileUUID + "';"
     c, sqlLock = databaseInterface.querySQL(sql)
     row = c.fetchone()
-    while row != None:
-        relationship = etree.SubElement(object, ns.premisBNS + "relationship")
-        etree.SubElement(relationship, ns.premisBNS + "relationshipType").text = "derivation"
-        etree.SubElement(relationship, ns.premisBNS + "relationshipSubType").text = "has source"
+    while row is not None:
+        source_file, _, related_event = row
+        # Events are generated for preservation, but not for access/thumbnail
+        # normalization.  Only generate derivations for preservation objects.
+        if related_event:
+            relationship = etree.SubElement(object, ns.premisBNS + "relationship")
+            etree.SubElement(relationship, ns.premisBNS + "relationshipType").text = "derivation"
+            etree.SubElement(relationship, ns.premisBNS + "relationshipSubType").text = "has source"
 
-        relatedObjectIdentification = etree.SubElement(relationship, ns.premisBNS + "relatedObjectIdentification")
-        etree.SubElement(relatedObjectIdentification, ns.premisBNS + "relatedObjectIdentifierType").text = "UUID"
-        etree.SubElement(relatedObjectIdentification, ns.premisBNS + "relatedObjectIdentifierValue").text = row[0]
+            relatedObjectIdentification = etree.SubElement(relationship, ns.premisBNS + "relatedObjectIdentification")
+            etree.SubElement(relatedObjectIdentification, ns.premisBNS + "relatedObjectIdentifierType").text = "UUID"
+            etree.SubElement(relatedObjectIdentification, ns.premisBNS + "relatedObjectIdentifierValue").text = source_file
 
-        relatedEventIdentification = etree.SubElement(relationship, ns.premisBNS + "relatedEventIdentification")
-        etree.SubElement(relatedEventIdentification, ns.premisBNS + "relatedEventIdentifierType").text = "UUID"
-        etree.SubElement(relatedEventIdentification, ns.premisBNS + "relatedEventIdentifierValue").text = row[2]
-
+            relatedEventIdentification = etree.SubElement(relationship, ns.premisBNS + "relatedEventIdentification")
+            etree.SubElement(relatedEventIdentification, ns.premisBNS + "relatedEventIdentifierType").text = "UUID"
+            etree.SubElement(relatedEventIdentification, ns.premisBNS + "relatedEventIdentifierValue").text = related_event
         row = c.fetchone()
     sqlLock.release()
     return ret
