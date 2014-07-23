@@ -22,6 +22,7 @@
 # @subpackage archivematicaClientScript
 # @author Joseph Perry <joseph@artefactual.com>
 import archivematicaXMLNamesSpace as ns
+import copy
 import lxml.etree as etree
 from glob import glob
 import os
@@ -30,6 +31,7 @@ import sys
 import MySQLdb
 import PyICU
 import traceback
+from uuid import uuid4
 from archivematicaCreateMETSMetadataCSV import parseMetadata
 from archivematicaCreateMETSMetadataCSV import CSVMetadata
 from archivematicaCreateMETSRights import archivematicaGetRights
@@ -838,7 +840,37 @@ def createFileSec(directoryPath, parentDiv):
         itemdirectoryPath = os.path.join(directoryPath, item)
         createFileSec(itemdirectoryPath, structMapDiv)
     return structMapDiv
-        
+
+def build_arranged_structmap(original_structmap):
+    sql = """SELECT relative_location, level_of_description FROM LevelsOfDescription
+        WHERE sipUUID = '{}'""".format(fileGroupIdentifier)
+    tag_dict = dict(databaseInterface.queryAllSQL(sql))
+    if len(tag_dict) < 1:
+        return
+
+    structmap = copy.deepcopy(original_structmap)
+    structmap.attrib['TYPE'] = 'logical'
+    structmap.attrib['LABEL'] = 'Hierarchical'
+    structmap.attrib['ID'] = "structMap_{}".format(uuid4())
+
+    for element in structmap.iterdescendants():
+        if not element.tag == "{}div".format(ns.metsBNS):
+            continue
+
+        path = [element.attrib['LABEL']]
+        parent = element.getparent()
+        path.insert(0, parent.attrib['LABEL'])
+
+        while parent.attrib['LABEL'] != 'objects':
+            parent = parent.getparent()
+            path.insert(0, parent.attrib['LABEL'])
+
+        relative_location = os.path.join(*path)
+
+        element.attrib['TYPE'] = tag_dict.get(relative_location)
+
+    return structmap
+
 def find_source_metadata(path):
     """
     Returns lists of all metadata to be referenced in the final document.
@@ -919,6 +951,9 @@ if __name__ == '__main__':
 
     createFileSec(os.path.join(baseDirectoryPath, "metadata"), structMapDiv)
 
+    arranged_structmap = build_arranged_structmap(structMap)
+    if arranged_structmap:
+        root.append(arranged_structmap)
 
     fileSec = etree.Element(ns.metsBNS + "fileSec")
     for group in globalFileGrpsUses: #globalFileGrps.itervalues():
