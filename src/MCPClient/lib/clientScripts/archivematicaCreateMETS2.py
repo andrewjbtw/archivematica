@@ -952,8 +952,6 @@ if __name__ == '__main__':
     createFileSec(os.path.join(baseDirectoryPath, "metadata"), structMapDiv)
 
     arranged_structmap = build_arranged_structmap(structMap)
-    if arranged_structmap:
-        root.append(arranged_structmap)
 
     fileSec = etree.Element(ns.metsBNS + "fileSec")
     for group in globalFileGrpsUses: #globalFileGrps.itervalues():
@@ -988,6 +986,8 @@ if __name__ == '__main__':
 
     root.append(fileSec)
     root.append(structMap)
+    if arranged_structmap:
+        root.append(arranged_structmap)
     for structMapIncl in getIncludedStructMap():
         root.append(structMapIncl)
     if False: #debug
