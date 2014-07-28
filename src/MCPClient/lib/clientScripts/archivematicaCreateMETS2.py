@@ -30,6 +30,8 @@ import sys
 import MySQLdb
 import PyICU
 import traceback
+
+import archivematicaCreateMETSReingest
 from archivematicaCreateMETSMetadataCSV import parseMetadata
 from archivematicaCreateMETSMetadataCSV import CSVMetadata
 from archivematicaCreateMETSRights import archivematicaGetRights
@@ -48,6 +50,7 @@ sharedVariablesAcrossModules.globalErrorCount = 0
 
 from optparse import OptionParser
 parser = OptionParser()
+parser.add_option("--sipType", action="store", dest="sip_type", default="SIP")
 parser.add_option("-s",  "--baseDirectoryPath", action="store", dest="baseDirectoryPath", default="")
 parser.add_option("-b",  "--baseDirectoryPathString", action="store", dest="baseDirectoryPathString", default="SIPDirectory") #transferDirectory/
 parser.add_option("-f",  "--fileGroupIdentifier", action="store", dest="fileGroupIdentifier", default="") #transferUUID/sipUUID
@@ -58,6 +61,7 @@ parser.add_option("-i",  "--PyICULocale", action="store", dest="PyICULocale", de
 (opts, args) = parser.parse_args()
 
 
+SIP_TYPE = opts.sip_type
 baseDirectoryPath = opts.baseDirectoryPath
 XMLFile = opts.xmlFile
 includeAmdSec = opts.amdSec
@@ -906,7 +910,47 @@ def create_object_metadata(struct_map):
     return el
 
 
+def write_mets(tree):
+    tree.write(XMLFile, pretty_print=True, xml_declaration=True)
+
+    writeTestXMLFile = True
+    if writeTestXMLFile:
+        import cgi
+        fileName = XMLFile + ".validatorTester.html"
+        fileContents = """<html>
+<body>
+  <form method="post" action="http://pim.fcla.edu/validate/results">
+    <label for="document">Enter XML Document:</label>
+    <br/>
+    <textarea id="directinput" rows="12" cols="76" name="document">%s</textarea>
+    <br/>
+    <br/>
+    <input type="submit" value="Validate" />
+    <br/>
+  </form>
+</body>
+</html>""" % (cgi.escape(etree.tostring(tree, pretty_print=True, xml_declaration=True)))
+        f = open(fileName, 'w')
+        f.write(fileContents)
+        f.close
+
 if __name__ == '__main__':
+    # If reingesting, do not create a new METS, just modify existing one
+    if 'REIN' in SIP_TYPE:
+        print 'Updating METS during reingest'
+        # fileGroupIdentifier is SIPUUID, baseDirectoryPath is SIP dir,
+        old_mets_path = os.path.join(
+            baseDirectoryPath,
+            'objects',
+            'submissionDocumentation',
+            'METS.' + fileGroupIdentifier + '.xml')
+        tree = archivematicaCreateMETSReingest.update_mets(
+            old_mets_path,
+            fileGroupIdentifier,
+        )
+        write_mets(tree)
+        sys.exit(0)
+    # End reingest
     sharedVariablesAcrossModules.collator = PyICU.Collator.createInstance(PyICU.Locale(opts.PyICULocale))
     while False: #used to stall the mcp and stop the client for testing this module
         import time
@@ -965,13 +1009,6 @@ if __name__ == '__main__':
     if False: #debug
         print etree.tostring(root, pretty_print=True)
 
-    #<div TYPE="directory" LABEL="AIP1-UUID">
-    #<div TYPE="directory" LABEL="objects" DMDID="dmdSec_01">
-    #Recursive function for creating structmap and fileSec
-    tree = etree.ElementTree(root)
-    #tree.write(XMLFile)
-    tree.write(XMLFile, pretty_print=True, xml_declaration=True)
-
     printSectionCounters = True
     if printSectionCounters:
         print "DmdSecs:", globalDmdSecCounter
@@ -979,31 +1016,8 @@ if __name__ == '__main__':
         print "TechMDs:", globalTechMDCounter
         print "RightsMDs:", globalRightsMDCounter
         print "DigiprovMDs:", globalDigiprovMDCounter
-         
-    writeTestXMLFile = True
-    if writeTestXMLFile:
-        import cgi
-        fileName = XMLFile + ".validatorTester.html"
-        fileContents = """<html>
-<body>
 
-  <form method="post" action="http://pim.fcla.edu/validate/results">
+    tree = etree.ElementTree(root)
+    write_mets(tree)
 
-    <label for="document">Enter XML Document:</label>
-    <br/>
-    <textarea id="directinput" rows="12" cols="76" name="document">%s</textarea>
-
-    <br/>
-    <br/>
-    <input type="submit" value="Validate" />
-    <br/>
-  </form>
-
-
-</body>
-</html>""" % (cgi.escape(etree.tostring(root, pretty_print=True, xml_declaration=True)))
-        f = open(fileName, 'w')
-        f.write(fileContents)
-        f.close
-
-    exit(sharedVariablesAcrossModules.globalErrorCount)
+    sys.exit(sharedVariablesAcrossModules.globalErrorCount)

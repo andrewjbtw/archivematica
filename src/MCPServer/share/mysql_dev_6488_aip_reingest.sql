@@ -247,6 +247,14 @@ ALTER TABLE RightsStatementRightsGranted
     MODIFY endDate longtext COLLATE utf8_unicode_ci NULL
     ;
 
+-- Add SIP type to createMETS2
+UPDATE StandardTasksConfigs SET arguments = '--amdSec --baseDirectoryPath "%SIPDirectory%" --baseDirectoryPathString "SIPDirectory" --fileGroupIdentifier "%SIPUUID%" --fileGroupType "sipUUID" --xmlFile "%SIPDirectory%METS.%SIPUUID%.xml" --sipType "%SIPType%"' WHERE pk='0aec05d4-7222-4c28-89f4-043d20a812cc';
+
+-- METS failure should result in a failed SIP
+SET @MoveSIPToFailedLink = '7d728c39-395f-4892-8193-92f086c0546f';
+UPDATE MicroServiceChainLinks SET defaultNextChainLink=@MoveSIPToFailedLink WHERE pk='ccf8ec5c-3a9a-404a-a7e7-8f567d3b36a0';
+-- /METS failure
+
 -- Delete all TasksConfigs that don't have MicroServiceChainLinks pointing at them
 DELETE FROM TasksConfigs USING TasksConfigs LEFT OUTER JOIN MicroServiceChainLinks ON currentTask=TasksConfigs.pk WHERE MicroServiceChainLinks.pk is NULL;
 -- Delete all StandardTasksConfigs that don't have TasksConfigs pointing at them
