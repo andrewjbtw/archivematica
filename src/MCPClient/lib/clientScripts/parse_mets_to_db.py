@@ -53,20 +53,23 @@ def parse_mets(mets_path):
 
         # FormatVersion
         format_version = None
-        # Looks for PRONOM ID first
-        if amdsec.findtext('.//premis:formatRegistryName', namespaces=ns.NSMAP) == 'PRONOM':
-            puid = amdsec.findtext('.//premis:formatRegistryKey', namespaces=ns.NSMAP)
-            print('PUID', puid)
-            format_version = fpr_models.FormatVersion.active.get(pronom_id=puid)
-        elif amdsec.findtext('.//premis:formatRegistryName', namespaces=ns.NSMAP) == 'Archivematica Format Policy Registry':
-            key = amdsec.findtext('.//premis:formatRegistryKey', namespaces=ns.NSMAP)
-            print('FPR key', key)
-            format_version = fpr_models.IDRule.active.get(command_output=key).format
-        # If not, look for formatName
-        if not format_version:
-            name = amdsec.findtext('.//premis:formatName', namespaces=ns.NSMAP)
-            print('Format name', name)
-            format_version = fpr_models.FormatVersion.active.get(description=name)
+        try:
+            # Looks for PRONOM ID first
+            if amdsec.findtext('.//premis:formatRegistryName', namespaces=ns.NSMAP) == 'PRONOM':
+                puid = amdsec.findtext('.//premis:formatRegistryKey', namespaces=ns.NSMAP)
+                print('PUID', puid)
+                format_version = fpr_models.FormatVersion.active.get(pronom_id=puid)
+            elif amdsec.findtext('.//premis:formatRegistryName', namespaces=ns.NSMAP) == 'Archivematica Format Policy Registry':
+                key = amdsec.findtext('.//premis:formatRegistryKey', namespaces=ns.NSMAP)
+                print('FPR key', key)
+                format_version = fpr_models.IDRule.active.get(command_output=key).format
+            # If not, look for formatName
+            if not format_version:
+                name = amdsec.findtext('.//premis:formatName', namespaces=ns.NSMAP)
+                print('Format name', name)
+                format_version = fpr_models.FormatVersion.active.get(description=name)
+        except fpr_models.FormatVersion.DoesNotExist:
+            pass
         print('format_version', format_version)
 
         # Derivation
@@ -175,11 +178,12 @@ def main():
         # SQL is run, the ORM cannot find the new file.
         sql = """UPDATE Files SET checksum='%s',fileSize='%s',currentLocation='%s' WHERE fileUUID='%s';""" % (file_info['checksum'], file_info['size'], file_info['current_path'], file_info['uuid'])
         databaseInterface.runSQL(sql)
-        # Add Format ID
-        models.FileFormatVersion.objects.create(
-            file_uuid_id=file_info['uuid'],
-            format_version=file_info['format_version']
-        )
+        if file_info['format_version']:
+            # Add Format ID
+            models.FileFormatVersion.objects.create(
+                file_uuid_id=file_info['uuid'],
+                format_version=file_info['format_version']
+            )
 
     # Derivation info
     # Has to be separate loop, as derived file may not be in DB otherwise
@@ -221,7 +225,13 @@ def main():
         }
         # Want most recently updated
         dmds = sorted(dmds, key=lambda e: e.get('CREATED'))
-        dc_xml = dmds[-1].find('mets:mdWrap/mets:xmlData/dcterms:dublincore', namespaces=ns.NSMAP)
+        # Only want SIP DC, not file DC
+        div = root.find('mets:structMap/mets:div/mets:div[@TYPE="Directory"][@LABEL="objects"]', namespaces=ns.NSMAP)
+        dmdids = div.get('DMDID').split()
+        for dmd in dmds[::-1]:  # Reversed
+            if dmd.get('ID') in dmdids:
+                dc_xml = dmd.find('mets:mdWrap/mets:xmlData/dcterms:dublincore', namespaces=ns.NSMAP)
+                break
         dc_model = models.DublinCore(
             metadataappliestoidentifier=sip_uuid,
             metadataappliestotype=md_type_sip,
@@ -232,9 +242,7 @@ def main():
             tag = elem.tag.replace(ns.dctermsBNS, '', 1)
             print(tag, elem.text)
             setattr(dc_model, DC_TERMS_MATCHING[tag], elem.text)
-        print('status', dc_model.status)
         dc_model.save()
-        print('status', dc_model.status)
 
     # Delete existing PREMIS Rights
     del_rights = models.RightsStatement.objects.filter(metadataappliestoidentifier=sip_uuid, metadataappliestotype=md_type_sip)
@@ -249,29 +257,27 @@ def main():
         amd = amds[0]
         # Get rightsMDs
         # METS from original AIPs will not have @STATUS, and reingested AIPs will have only one @STATUS that is 'updated'
-        rights_stmts = amd.xpath('mets:rightsMD[not(@STATUS) or @STATUS="updated"]/mets:mdWrap[@MDTYPE="PREMIS:RIGHTS"]/*/premis:rightsStatement', namespaces=ns.NSMAP)
+        rights_stmts = amd.xpath('mets:rightsMD[not(@STATUS) or @STATUS="current"]/mets:mdWrap[@MDTYPE="PREMIS:RIGHTS"]/*/premis:rightsStatement', namespaces=ns.NSMAP)
 
         # Parse to DB
         for statement in rights_stmts:
-            id_type = statement.findtext('premis:rightsStatementIdentifier/premis:rightsStatementIdentifierType', namespaces=ns.NSMAP)
-            id_value = statement.findtext('premis:rightsStatementIdentifier/premis:rightsStatementIdentifierValue', namespaces=ns.NSMAP)
             rights_basis = statement.findtext('premis:rightsBasis', namespaces=ns.NSMAP)
             print('rights_basis', rights_basis)
             rights = models.RightsStatement.objects.create(
                 metadataappliestotype=md_type_sip,
                 metadataappliestoidentifier=sip_uuid,
-                rightsstatementidentifiertype=id_type,
-                rightsstatementidentifiervalue=id_value,
+                rightsstatementidentifiertype="",
+                rightsstatementidentifiervalue="",
                 rightsbasis=rights_basis,
                 status=models.METADATA_STATUS_REINGEST,
             )
             # TODO parse more than just RightsStatement
             if rights_basis == 'Copyright':
-                cr_status = statement.findtext('.//premis:copyrightStatus', namespaces=ns.NSMAP)
-                cr_jurisdiction = statement.findtext('.//premis:copyrightJurisdiction', namespaces=ns.NSMAP)
-                cr_det_date = statement.findtext('.//premis:copyrightStatusDeterminationDate', namespaces=ns.NSMAP)
-                cr_start_date = statement.findtext('.//premis:copyrightApplicableDates/premis:startDate', namespaces=ns.NSMAP)
-                cr_end_date = statement.findtext('.//premis:copyrightApplicableDates/premis:endDate', namespaces=ns.NSMAP)
+                cr_status = statement.findtext('.//premis:copyrightStatus', namespaces=ns.NSMAP) or ""
+                cr_jurisdiction = statement.findtext('.//premis:copyrightJurisdiction', namespaces=ns.NSMAP) or ""
+                cr_det_date = statement.findtext('.//premis:copyrightStatusDeterminationDate', namespaces=ns.NSMAP) or ""
+                cr_start_date = statement.findtext('.//premis:copyrightApplicableDates/premis:startDate', namespaces=ns.NSMAP) or ""
+                cr_end_date = statement.findtext('.//premis:copyrightApplicableDates/premis:endDate', namespaces=ns.NSMAP) or ""
                 cr_end_open = False
                 if cr_end_date == 'OPEN':
                     cr_end_open = True
@@ -285,25 +291,25 @@ def main():
                     copyrightapplicableenddate=cr_end_date,
                     copyrightenddateopen=cr_end_open,
                 )
-                cr_id_type = statement.findtext('.//premis:copyrightDocumentationIdentifierType', namespaces=ns.NSMAP)
-                cr_id_value = statement.findtext('.//premis:copyrightDocumentationIdentifierValue', namespaces=ns.NSMAP)
-                cr_id_role = statement.findtext('.//premis:copyrightDocumentationRole', namespaces=ns.NSMAP)
+                cr_id_type = statement.findtext('.//premis:copyrightDocumentationIdentifierType', namespaces=ns.NSMAP) or ""
+                cr_id_value = statement.findtext('.//premis:copyrightDocumentationIdentifierValue', namespaces=ns.NSMAP) or ""
+                cr_id_role = statement.findtext('.//premis:copyrightDocumentationRole', namespaces=ns.NSMAP) or ""
                 models.RightsStatementCopyrightDocumentationIdentifier.objects.create(
                     rightscopyright=cr,
                     copyrightdocumentationidentifiertype=cr_id_type,
                     copyrightdocumentationidentifiervalue=cr_id_value,
                     copyrightdocumentationidentifierrole=cr_id_role,
                 )
-                cr_note = statement.findtext('.//premis:copyrightNote', namespaces=ns.NSMAP)
+                cr_note = statement.findtext('.//premis:copyrightNote', namespaces=ns.NSMAP) or ""
                 models.RightsStatementCopyrightNote.objects.create(
                     rightscopyright=cr,
                     copyrightnote=cr_note,
                 )
 
             # TODO Do all RightsStatement's have a RightsStatementRightsGranted?
-            rights_act = statement.findtext('.//premis:rightsGranted/premis:act', namespaces=ns.NSMAP)
-            rights_start_date = statement.findtext('.//premis:rightsGranted/premis:termOfRestriction/premis:startDate', namespaces=ns.NSMAP)
-            rights_end_date = statement.findtext('.//premis:rightsGranted/premis:termOfRestriction/premis:endDate', namespaces=ns.NSMAP)
+            rights_act = statement.findtext('.//premis:rightsGranted/premis:act', namespaces=ns.NSMAP) or ""
+            rights_start_date = statement.findtext('.//premis:rightsGranted/premis:termOfRestriction/premis:startDate', namespaces=ns.NSMAP) or ""
+            rights_end_date = statement.findtext('.//premis:rightsGranted/premis:termOfRestriction/premis:endDate', namespaces=ns.NSMAP) or ""
             rights_end_open = False
             if rights_end_date == 'OPEN':
                 rights_end_date = None
@@ -320,14 +326,14 @@ def main():
                 enddateopen=rights_end_open,
             )
 
-            rights_note = statement.findtext('.//premis:rightsGranted/premis:rightsGrantedNote', namespaces=ns.NSMAP)
+            rights_note = statement.findtext('.//premis:rightsGranted/premis:rightsGrantedNote', namespaces=ns.NSMAP) or ""
             print('rights_note', rights_note)
             models.RightsStatementRightsGrantedNote.objects.create(
                 rightsgranted=rights_granted,
                 rightsgrantednote=rights_note,
             )
 
-            rights_restriction = statement.findtext('.//premis:rightsGranted/premis:restriction', namespaces=ns.NSMAP)
+            rights_restriction = statement.findtext('.//premis:rightsGranted/premis:restriction', namespaces=ns.NSMAP) or ""
             print('rights_restriction', rights_restriction)
             models.RightsStatementRightsGrantedRestriction.objects.create(
                 rightsgranted=rights_granted,
