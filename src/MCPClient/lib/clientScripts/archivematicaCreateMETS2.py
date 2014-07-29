@@ -419,55 +419,70 @@ def createTechMD(fileUUID):
     return ret
 
 def createDigiprovMD(fileUUID):
+    """
+    Create digiprovMD for PREMIS Events and linking Agents.
+    """
     ret = []
-    #EVENTS
 
     sql = "SELECT pk, fileUUID, eventIdentifierUUID, eventType, eventDateTime, eventDetail, eventOutcome, eventOutcomeDetailNote, linkingAgentIdentifier FROM Events WHERE fileUUID = '" + fileUUID + "';"
     rows = databaseInterface.queryAllSQL(sql)
     for row in rows:
         digiprovMD = etree.Element(ns.metsBNS + "digiprovMD")
-        ret.append(digiprovMD) #newChild(amdSec, "digiprovMD")
-        #digiprovMD.set("ID", "digiprov-"+ os.path.basename(filename) + "-" + fileUUID)
+        ret.append(digiprovMD)
         global globalDigiprovMDCounter
         globalDigiprovMDCounter += 1
         digiprovMD.set("ID", "digiprovMD_"+ globalDigiprovMDCounter.__str__())
-
-        mdWrap = etree.SubElement(digiprovMD, ns.metsBNS + "mdWrap")
-        mdWrap.set("MDTYPE", "PREMIS:EVENT")
-        xmlData = etree.SubElement(mdWrap, ns.metsBNS + "xmlData")
-        event = etree.SubElement(xmlData, ns.premisBNS + "event", nsmap={'premis': ns.premisNS})
-        event.set(ns.xsiBNS+"schemaLocation", ns.premisNS + " http://www.loc.gov/standards/premis/v2/premis-v2-2.xsd")
-        event.set("version", "2.2")
-
-        eventIdentifier = etree.SubElement(event, ns.premisBNS + "eventIdentifier")
-        etree.SubElement(eventIdentifier, ns.premisBNS + "eventIdentifierType").text = "UUID"
-        etree.SubElement(eventIdentifier, ns.premisBNS + "eventIdentifierValue").text = row[2]
-
-        etree.SubElement(event, ns.premisBNS + "eventType").text = row[3]
-        etree.SubElement(event, ns.premisBNS + "eventDateTime").text = row[4].__str__().replace(" ", "T")
-        etree.SubElement(event, ns.premisBNS + "eventDetail").text = escape(row[5])
-
-        eventOutcomeInformation  = etree.SubElement(event, ns.premisBNS + "eventOutcomeInformation")
-        etree.SubElement(eventOutcomeInformation, ns.premisBNS + "eventOutcome").text = row[6]
-        eventOutcomeDetail = etree.SubElement(eventOutcomeInformation, ns.premisBNS + "eventOutcomeDetail")
-        etree.SubElement(eventOutcomeDetail, ns.premisBNS + "eventOutcomeDetailNote").text = escape(row[7])
-        
-        if row[8]:
-            linkingAgentIdentifier = etree.SubElement(event, ns.premisBNS + "linkingAgentIdentifier")
-            etree.SubElement(linkingAgentIdentifier, ns.premisBNS + "linkingAgentIdentifierType").text = "Archivematica user pk"
-            etree.SubElement(linkingAgentIdentifier, ns.premisBNS + "linkingAgentIdentifierValue").text = row[8].__str__()
-        
-        #linkingAgentIdentifier
-        sql = """SELECT agentIdentifierType, agentIdentifierValue, agentName, agentType FROM Agents;"""
-        c, sqlLock = databaseInterface.querySQL(sql)
-        row = c.fetchone()
-        while row != None:
-            linkingAgentIdentifier = etree.SubElement(event, ns.premisBNS + "linkingAgentIdentifier")
-            etree.SubElement(linkingAgentIdentifier, ns.premisBNS + "linkingAgentIdentifierType").text = row[0]
-            etree.SubElement(linkingAgentIdentifier, ns.premisBNS + "linkingAgentIdentifierValue").text = row[1]
-            row = c.fetchone()
-        sqlLock.release()
+        event_info = {
+            'eventIdentifierValue': row[2],
+            'eventType': row[3],
+            'eventDateTime': str(row[4]).replace(" ", "T"),
+            'eventDetail': escape(row[5]),
+            'eventOutcome': row[6],
+            'eventOutcomeDetailNote': escape(row[7]),
+            'linkingAgentIdentifier': str(row[8]),
+        }
+        createEvent(digiprovMD, event_info)
     return ret
+
+
+def createEvent(digiprovMD, event_info):
+    """ Create a PREMIS Event as a SubElement of digiprovMD. """
+    mdWrap = etree.SubElement(digiprovMD, ns.metsBNS + "mdWrap")
+    mdWrap.set("MDTYPE", "PREMIS:EVENT")
+    xmlData = etree.SubElement(mdWrap, ns.metsBNS + "xmlData")
+    event = etree.SubElement(xmlData, ns.premisBNS + "event", nsmap={'premis': ns.premisNS})
+    event.set(ns.xsiBNS+"schemaLocation", ns.premisNS + " http://www.loc.gov/standards/premis/v2/premis-v2-2.xsd")
+    event.set("version", "2.2")
+
+    eventIdentifier = etree.SubElement(event, ns.premisBNS + "eventIdentifier")
+    etree.SubElement(eventIdentifier, ns.premisBNS + "eventIdentifierType").text = "UUID"
+    etree.SubElement(eventIdentifier, ns.premisBNS + "eventIdentifierValue").text = event_info['eventIdentifierValue']
+
+    etree.SubElement(event, ns.premisBNS + "eventType").text = event_info['eventType']
+    etree.SubElement(event, ns.premisBNS + "eventDateTime").text = event_info['eventDateTime']
+    etree.SubElement(event, ns.premisBNS + "eventDetail").text = event_info['eventDetail']
+
+    eventOutcomeInformation  = etree.SubElement(event, ns.premisBNS + "eventOutcomeInformation")
+    etree.SubElement(eventOutcomeInformation, ns.premisBNS + "eventOutcome").text =  event_info['eventOutcome']
+    eventOutcomeDetail = etree.SubElement(eventOutcomeInformation, ns.premisBNS + "eventOutcomeDetail")
+    etree.SubElement(eventOutcomeDetail, ns.premisBNS + "eventOutcomeDetailNote").text = event_info['eventOutcomeDetailNote']
+
+    if event_info['linkingAgentIdentifier']:
+        linkingAgentIdentifier = etree.SubElement(event, ns.premisBNS + "linkingAgentIdentifier")
+        etree.SubElement(linkingAgentIdentifier, ns.premisBNS + "linkingAgentIdentifierType").text = "Archivematica user pk"
+        etree.SubElement(linkingAgentIdentifier, ns.premisBNS + "linkingAgentIdentifierValue").text = event_info['linkingAgentIdentifier']
+
+    #linkingAgentIdentifier
+    sql = """SELECT agentIdentifierType, agentIdentifierValue, agentName, agentType FROM Agents;"""
+    c, sqlLock = databaseInterface.querySQL(sql)
+    row = c.fetchone()
+    while row != None:
+        linkingAgentIdentifier = etree.SubElement(event, ns.premisBNS + "linkingAgentIdentifier")
+        etree.SubElement(linkingAgentIdentifier, ns.premisBNS + "linkingAgentIdentifierType").text = row[0]
+        etree.SubElement(linkingAgentIdentifier, ns.premisBNS + "linkingAgentIdentifierValue").text = row[1]
+        row = c.fetchone()
+    sqlLock.release()
+
 
 def createDigiprovMDAgents():
     ret = []

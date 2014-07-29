@@ -7,6 +7,9 @@ import sys
 import archivematicaXMLNamesSpace as ns
 import archivematicaCreateMETS2 as createmets2
 
+sys.path.append("/usr/lib/archivematica/archivematicaCommon")
+import archivematicaFunctions
+
 sys.path.append('/usr/share/archivematica/dashboard')
 os.environ['DJANGO_SETTINGS_MODULE'] = 'settings.common'
 from main import models
@@ -102,10 +105,41 @@ def update_rights(root):
     return root
 
 
-def add_events(root):
+def add_events(root, sip_uuid):
     """
     Add reingest events for all existing files.
     """
+    # Get all reingestion events for files in this SIP
+    reingest_events = models.Event.objects.filter(file_uuid__sip__uuid=sip_uuid, event_type='reingestion')
+    digiprov_counter = int(root.xpath('count(mets:amdSec/mets:digiprovMD)', namespaces=ns.NSMAP))  # HACK
+    for event in reingest_events:
+        # Use fileSec to get amdSec (use first amdSec)
+        print 'Adding reingestion event to', event.file_uuid_id,
+        f = event.file_uuid
+        rel_path = f.currentlocation.replace('%SIPDirectory%', '', 1).replace('%transferDirectory%', '', 1)
+        file_elem = root.xpath('mets:fileSec/mets:fileGrp/mets:file/mets:FLocat[@xlink:href="' + rel_path + '"]/ancestor::mets:file', namespaces=ns.NSMAP)[0]
+        amdid = file_elem.get('ADMID').split()[0]
+        print 'with ADMID', amdid
+        amdsec = root.find('mets:amdSec[@ID="' + amdid + '"]', namespaces=ns.NSMAP)
+
+        # Add event after digiprovMD
+        digiprov_counter += 1
+        digiprovid = 'digiprovMD_%s' % digiprov_counter
+        digiprovMD = etree.Element(ns.metsBNS + "digiprovMD", ID=digiprovid)
+        event_info = {
+            'eventIdentifierValue': event.event_id,
+            'eventType': event.event_type,
+            'eventDateTime': str(event.event_datetime).replace(" ", "T"),
+            'eventDetail': archivematicaFunctions.escape(event.event_detail),
+            'eventOutcome': event.event_outcome,
+            'eventOutcomeDetailNote': archivematicaFunctions.escape(event.event_outcome_detail),
+            'linkingAgentIdentifier': str(event.linking_agent_id),
+        }
+        createmets2.createEvent(digiprovMD, event_info)
+
+        # Add digiprovMD after other event digiprovMDs
+        amdsec.findall('mets:digiprovMD', namespaces=ns.NSMAP)[-1].addnext(digiprovMD)
+
     return root
 
 
@@ -126,7 +160,7 @@ def update_mets(old_mets_path, sip_uuid):
     root = update_header(root, now)
     root = update_dublincore(root, sip_uuid, now)
     root = update_rights(root)
-    root = add_events(root)
+    root = add_events(root, sip_uuid)
     root = add_new_files(root, now)
     return root
 
