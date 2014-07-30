@@ -231,18 +231,26 @@ def add_new_files(root, now):
     return root
 
 
-def update_mets(old_mets_path, sip_uuid):
+def update_mets(sip_dir, sip_uuid):
+    old_mets_path = os.path.join(
+        sip_dir,
+        'objects',
+        'submissionDocumentation',
+        'METS.' + sip_uuid + '.xml')
     print 'Looking for old METS at path', old_mets_path
     # Discard whitespace now so when printing later formats correctly
     parser = etree.XMLParser(remove_blank_text=True)
     root = etree.parse(old_mets_path, parser=parser)
     now = datetime.datetime.utcnow().replace(microsecond=0).isoformat('T')
 
-    root = update_header(root, now)
-    root = update_dublincore(root, sip_uuid, now)
-    root = update_rights(root, sip_uuid, now)
-    root = add_events(root, sip_uuid)
-    root = add_new_files(root, now)
+    update_header(root, now)
+    update_dublincore(root, sip_uuid, now)
+    update_rights(root, sip_uuid, now)
+    add_events(root, sip_uuid)
+    add_new_files(root, sip_uuid, sip_dir, now)
+
+    # Delete original METS
+
     return root
 
 if __name__ == '__main__':
