@@ -6,6 +6,7 @@ import sys
 
 import archivematicaXMLNamesSpace as ns
 import archivematicaCreateMETS2 as createmets2
+import archivematicaCreateMETSRights as createmetsrights
 
 sys.path.append("/usr/lib/archivematica/archivematicaCommon")
 import archivematicaFunctions
@@ -98,11 +99,91 @@ def update_dublincore(root, sip_uuid, now):
     return root
 
 
-def update_rights(root):
+def update_rights(root, sip_uuid, now):
     """
     Add rightsMDs for updated PREMIS Rights.
     """
+    rights_counter = int(root.xpath('count(mets:amdSec/mets:rightsMD)', namespaces=ns.NSMAP))  # HACK
+
+    # Get amdSecs to add rights to. Only add to first amdSec for original files
+    file_elems = root.findall('mets:fileSec/mets:fileGrp[@USE="original"]/mets:file', namespaces=ns.NSMAP)
+    ids = [x.get('ADMID', '').split()[0] for x in file_elems]
+    search_ids = ' or '.join(['@ID="%s"' % x for x in ids])
+    amdsecs = root.xpath('mets:amdSec[%s]' % search_ids, namespaces=ns.NSMAP)
+
+    # Check for newly added rights
+    rights_list = models.RightsStatement.objects.filter(
+        metadataappliestoidentifier=sip_uuid,
+        metadataappliestotype_id=createmets2.SIPMetadataAppliesToType,
+        status=models.METADATA_STATUS_ORIGINAL
+    )
+    if not rights_list:
+        print 'No new rights added'
+    else:
+        rights_counter = add_rights_elements(rights_list, amdsecs, now, rights_counter)
+
+    # Check for updated rights
+    rights_list = models.RightsStatement.objects.filter(
+        metadataappliestoidentifier=sip_uuid,
+        metadataappliestotype_id=createmets2.SIPMetadataAppliesToType,
+        status=models.METADATA_STATUS_UPDATED
+    )
+    if not rights_list:
+        print 'No updated rights found'
+    else:
+        add_rights_elements(rights_list, amdsecs, now, rights_counter, updated=True)
+
     return root
+
+
+def add_rights_elements(rights_list, amdsecs, now, rights_counter, updated=False):
+    """
+    Create and add rightsMDs for everything in rights_list to amdsecs.
+    """
+    # Add to files' amdSecs
+    for amdsec in amdsecs:
+        # Get element to add rightsMDs after
+        try:
+            # Add after other rightsMDs
+            add_after = amdsec.findall('mets:rightsMD', namespaces=ns.NSMAP)[-1]
+        except IndexError:
+            # If no rightsMDs, then techMD is aways there and previous subsection
+            add_after = amdsec.findall('mets:techMD', namespaces=ns.NSMAP)[-1]
+        for rights in rights_list:
+            # Generate ID based on number of other rightsMDs
+            rights_counter += 1
+            rightsid = 'rightsMD_%s' % rights_counter
+            print 'Adding rightsMD', rightsid,
+
+            # Get file UUID for this file
+            file_uuid = amdsec.findtext('mets:techMD/mets:mdWrap[@MDTYPE="PREMIS:OBJECT"]//premis:objectIdentifierValue', namespaces=ns.NSMAP)
+            print 'for file', file_uuid, 'with ADMID', amdsec.get('ID')
+
+            # Create element
+            rightsMD = etree.Element(ns.metsBNS + "rightsMD", ID=rightsid, CREATED=now)
+            mdWrap = etree.SubElement(rightsMD, ns.metsBNS + 'mdWrap', MDTYPE='PREMIS:RIGHTS')
+            xmlData = etree.SubElement(mdWrap, ns.metsBNS + 'xmlData')
+            rights_info = {
+                "RightsStatement.pk": rights.id,
+                "rightsStatementIdentifierType": rights.rightsstatementidentifiertype,
+                "rightsStatementIdentifierValue": rights.rightsstatementidentifiervalue,
+                "rightsBasis": rights.rightsbasis,
+            }
+            rights_statement = createmetsrights.createRightsStatement(rights_info, file_uuid)
+            xmlData.append(rights_statement)
+
+            if updated:
+                rightsMD.set('STATUS', 'current')
+
+            add_after.addnext(rightsMD)
+            add_after = rightsMD
+
+            # TODO handle updated
+            # if updated:
+            #     rights_stmnt_id = ''
+            #     print 'Set rightsMD', rightsid, 'to superseded'
+
+    return rights_counter
 
 
 def add_events(root, sip_uuid):
@@ -159,7 +240,7 @@ def update_mets(old_mets_path, sip_uuid):
 
     root = update_header(root, now)
     root = update_dublincore(root, sip_uuid, now)
-    root = update_rights(root)
+    root = update_rights(root, sip_uuid, now)
     root = add_events(root, sip_uuid)
     root = add_new_files(root, now)
     return root
