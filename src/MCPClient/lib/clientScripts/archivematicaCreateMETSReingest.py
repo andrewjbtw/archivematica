@@ -174,14 +174,17 @@ def add_rights_elements(rights_list, amdsecs, now, rights_counter, updated=False
 
             if updated:
                 rightsMD.set('STATUS', 'current')
+                # Find superseded rightsMD and mark as such
+                # rightsBasis is semantically unique (though not currently
+                # enforced in code). Find rightsMDs with the same rights basis
+                # and mark superseded
+                superseded = amdsec.xpath('mets:rightsMD[not(@STATUS) or @STATUS="current"]//premis:rightsBasis[text()="' + rights.rightsbasis + '"]/ancestor::mets:rightsMD', namespaces=ns.NSMAP)
+                for elem in superseded:
+                    print 'Marking', elem.get('ID'), 'as superseded'
+                    elem.set('STATUS', 'superseded')
 
             add_after.addnext(rightsMD)
             add_after = rightsMD
-
-            # TODO handle updated
-            # if updated:
-            #     rights_stmnt_id = ''
-            #     print 'Set rightsMD', rightsid, 'to superseded'
 
     return rights_counter
 
