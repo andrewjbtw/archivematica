@@ -18,10 +18,10 @@ os.environ['DJANGO_SETTINGS_MODULE'] = 'settings.common'
 from main import models
 from fpr import models as fpr_models
 
+MD_TYPE_SIP = models.MetadataAppliesToType.objects.get(description='SIP')
 
-def parse_mets(mets_path):
-    # HACK this is a hack to populate files with information from the METS file.
-    # This should use the in-progress METS Reader/Writer
+
+def parse_files(mets_path):
     root = etree.parse(mets_path)
     filesec = root.find('.//mets:fileSec', namespaces=ns.NSMAP)
     files = []
@@ -102,6 +102,154 @@ def parse_mets(mets_path):
     return files
 
 
+def parse_dc(sip_uuid, root):
+    # Delete existing DC
+    models.DublinCore.objects.filter(metadataappliestoidentifier=sip_uuid, metadataappliestotype=MD_TYPE_SIP).delete()
+    # Parse DC
+    dmds = root.xpath('mets:dmdSec/mets:mdWrap[@MDTYPE="DC"]/parent::*', namespaces=ns.NSMAP)
+    # Find which DC to parse into DB
+    if len(dmds) > 0:
+        DC_TERMS_MATCHING = {
+            'title': 'title',
+            'creator': 'creator',
+            'subject': 'subject',
+            'description': 'description',
+            'publisher': 'publisher',
+            'contributor': 'contributor',
+            'date': 'date',
+            'type': 'type',
+            'format': 'format',
+            'identifier': 'identifier',
+            'source': 'source',
+            'relation': 'relation',
+            'language': 'language',
+            'coverage': 'coverage',
+            'rights': 'rights',
+            'isPartOf': 'is_part_of',
+        }
+        # Want most recently updated
+        dmds = sorted(dmds, key=lambda e: e.get('CREATED'))
+        # Only want SIP DC, not file DC
+        div = root.find('mets:structMap/mets:div/mets:div[@TYPE="Directory"][@LABEL="objects"]', namespaces=ns.NSMAP)
+        dmdids = div.get('DMDID')
+        # No SIP DC
+        if dmdids is None:
+            return
+        dmdids = dmdids.split()
+        for dmd in dmds[::-1]:  # Reversed
+            if dmd.get('ID') in dmdids:
+                dc_xml = dmd.find('mets:mdWrap/mets:xmlData/dcterms:dublincore', namespaces=ns.NSMAP)
+                break
+        dc_model = models.DublinCore(
+            metadataappliestoidentifier=sip_uuid,
+            metadataappliestotype=MD_TYPE_SIP,
+            status=models.METADATA_STATUS_REINGEST,
+        )
+        print('Dublin Core:')
+        for elem in dc_xml:
+            tag = elem.tag.replace(ns.dctermsBNS, '', 1)
+            print(tag, elem.text)
+            setattr(dc_model, DC_TERMS_MATCHING[tag], elem.text)
+        dc_model.save()
+
+def parse_rights(sip_uuid, root):
+    # Delete existing PREMIS Rights
+    del_rights = models.RightsStatement.objects.filter(metadataappliestoidentifier=sip_uuid, metadataappliestotype=MD_TYPE_SIP)
+    # TODO delete all the other rights things?
+    models.RightsStatementCopyright.objects.filter(rightsstatement__in=del_rights).delete()
+
+    models.RightsStatementRightsGranted.objects.filter(rightsstatement__in=del_rights).delete()
+    del_rights.delete()
+
+    amds = root.xpath('mets:amdSec/mets:rightsMD/parent::*', namespaces=ns.NSMAP)
+    if amds:
+        amd = amds[0]
+        # Get rightsMDs
+        # METS from original AIPs will not have @STATUS, and reingested AIPs will have only one @STATUS that is 'updated'
+        rights_stmts = amd.xpath('mets:rightsMD[not(@STATUS) or @STATUS="current"]/mets:mdWrap[@MDTYPE="PREMIS:RIGHTS"]/*/premis:rightsStatement', namespaces=ns.NSMAP)
+
+        # Parse to DB
+        for statement in rights_stmts:
+            rights_basis = statement.findtext('premis:rightsBasis', namespaces=ns.NSMAP)
+            print('rights_basis', rights_basis)
+            rights = models.RightsStatement.objects.create(
+                metadataappliestotype=MD_TYPE_SIP,
+                metadataappliestoidentifier=sip_uuid,
+                rightsstatementidentifiertype="",
+                rightsstatementidentifiervalue="",
+                rightsbasis=rights_basis,
+                status=models.METADATA_STATUS_REINGEST,
+            )
+            # TODO parse more than just Copyright
+            if rights_basis == 'Copyright':
+                cr_status = statement.findtext('.//premis:copyrightStatus', namespaces=ns.NSMAP) or ""
+                cr_jurisdiction = statement.findtext('.//premis:copyrightJurisdiction', namespaces=ns.NSMAP) or ""
+                cr_det_date = statement.findtext('.//premis:copyrightStatusDeterminationDate', namespaces=ns.NSMAP) or ""
+                cr_start_date = statement.findtext('.//premis:copyrightApplicableDates/premis:startDate', namespaces=ns.NSMAP) or ""
+                cr_end_date = statement.findtext('.//premis:copyrightApplicableDates/premis:endDate', namespaces=ns.NSMAP) or ""
+                cr_end_open = False
+                if cr_end_date == 'OPEN':
+                    cr_end_open = True
+                    cr_end_date = None
+                cr = models.RightsStatementCopyright.objects.create(
+                    rightsstatement=rights,
+                    copyrightstatus=cr_status,
+                    copyrightjurisdiction=cr_jurisdiction,
+                    copyrightstatusdeterminationdate=cr_det_date,
+                    copyrightapplicablestartdate=cr_start_date,
+                    copyrightapplicableenddate=cr_end_date,
+                    copyrightenddateopen=cr_end_open,
+                )
+                cr_id_type = statement.findtext('.//premis:copyrightDocumentationIdentifierType', namespaces=ns.NSMAP) or ""
+                cr_id_value = statement.findtext('.//premis:copyrightDocumentationIdentifierValue', namespaces=ns.NSMAP) or ""
+                cr_id_role = statement.findtext('.//premis:copyrightDocumentationRole', namespaces=ns.NSMAP) or ""
+                models.RightsStatementCopyrightDocumentationIdentifier.objects.create(
+                    rightscopyright=cr,
+                    copyrightdocumentationidentifiertype=cr_id_type,
+                    copyrightdocumentationidentifiervalue=cr_id_value,
+                    copyrightdocumentationidentifierrole=cr_id_role,
+                )
+                cr_note = statement.findtext('.//premis:copyrightNote', namespaces=ns.NSMAP) or ""
+                models.RightsStatementCopyrightNote.objects.create(
+                    rightscopyright=cr,
+                    copyrightnote=cr_note,
+                )
+
+            # Parse rightsGranted
+            rights_act = statement.findtext('.//premis:rightsGranted/premis:act', namespaces=ns.NSMAP) or ""
+            rights_start_date = statement.findtext('.//premis:rightsGranted/premis:termOfRestriction/premis:startDate', namespaces=ns.NSMAP) or ""
+            rights_end_date = statement.findtext('.//premis:rightsGranted/premis:termOfRestriction/premis:endDate', namespaces=ns.NSMAP) or ""
+            rights_end_open = False
+            if rights_end_date == 'OPEN':
+                rights_end_date = None
+                rights_end_open = True
+            print('rights_act', rights_act)
+            print('rights_start_date', rights_start_date)
+            print('rights_end_date', rights_end_date)
+            print('rights_end_open', rights_end_open)
+            rights_granted = models.RightsStatementRightsGranted.objects.create(
+                rightsstatement=rights,
+                act=rights_act,
+                startdate=rights_start_date,
+                enddate=rights_end_date,
+                enddateopen=rights_end_open,
+            )
+
+            rights_note = statement.findtext('.//premis:rightsGranted/premis:rightsGrantedNote', namespaces=ns.NSMAP) or ""
+            print('rights_note', rights_note)
+            models.RightsStatementRightsGrantedNote.objects.create(
+                rightsgranted=rights_granted,
+                rightsgrantednote=rights_note,
+            )
+
+            rights_restriction = statement.findtext('.//premis:rightsGranted/premis:restriction', namespaces=ns.NSMAP) or ""
+            print('rights_restriction', rights_restriction)
+            models.RightsStatementRightsGrantedRestriction.objects.create(
+                rightsgranted=rights_granted,
+                restriction=rights_restriction,
+            )
+
+
 def update_default_config(processing_path):
     root = etree.parse(processing_path)
 
@@ -143,6 +291,9 @@ def update_default_config(processing_path):
 
 
 def main():
+    # HACK Most of this file is a hack to parse the METS file into the DB.
+    # This should use the in-progress METS Reader/Writer
+
     sip_uuid = sys.argv[1]
     task_uuid = sys.argv[2]
     sip_path = sys.argv[3]
@@ -158,7 +309,7 @@ def main():
 
     # Parse METS to extract information needed by later microservices
     mets_path = os.path.join(sip_path, 'metadata', 'submissionDocumentation', 'METS.'+sip_uuid+'.xml')
-    files = parse_mets(mets_path)
+    files = parse_files(mets_path)
 
     # Add information to the DB
     for file_info in files:
@@ -197,148 +348,11 @@ def main():
             relatedEventUUID=file_info['derivation_event'],
         )
 
-    # Delete existing DC
-    md_type_sip = models.MetadataAppliesToType.objects.get(description='SIP')
-    models.DublinCore.objects.filter(metadataappliestoidentifier=sip_uuid, metadataappliestotype=md_type_sip).delete()
-    # Parse DC
     root = etree.parse(mets_path)
-    dmds = root.xpath('mets:dmdSec/mets:mdWrap[@MDTYPE="DC"]/parent::*', namespaces=ns.NSMAP)
-    # Find which DC to parse into DB
-    if len(dmds) > 0:
-        DC_TERMS_MATCHING = {
-            'title': 'title',
-            'creator': 'creator',
-            'subject': 'subject',
-            'description': 'description',
-            'publisher': 'publisher',
-            'contributor': 'contributor',
-            'date': 'date',
-            'type': 'type',
-            'format': 'format',
-            'identifier': 'identifier',
-            'source': 'source',
-            'relation': 'relation',
-            'language': 'language',
-            'coverage': 'coverage',
-            'rights': 'rights',
-            'isPartOf': 'is_part_of',
-        }
-        # Want most recently updated
-        dmds = sorted(dmds, key=lambda e: e.get('CREATED'))
-        # Only want SIP DC, not file DC
-        div = root.find('mets:structMap/mets:div/mets:div[@TYPE="Directory"][@LABEL="objects"]', namespaces=ns.NSMAP)
-        dmdids = div.get('DMDID').split()
-        for dmd in dmds[::-1]:  # Reversed
-            if dmd.get('ID') in dmdids:
-                dc_xml = dmd.find('mets:mdWrap/mets:xmlData/dcterms:dublincore', namespaces=ns.NSMAP)
-                break
-        dc_model = models.DublinCore(
-            metadataappliestoidentifier=sip_uuid,
-            metadataappliestotype=md_type_sip,
-            status=models.METADATA_STATUS_REINGEST,
-        )
-        print('Dublin Core:')
-        for elem in dc_xml:
-            tag = elem.tag.replace(ns.dctermsBNS, '', 1)
-            print(tag, elem.text)
-            setattr(dc_model, DC_TERMS_MATCHING[tag], elem.text)
-        dc_model.save()
 
-    # Delete existing PREMIS Rights
-    del_rights = models.RightsStatement.objects.filter(metadataappliestoidentifier=sip_uuid, metadataappliestotype=md_type_sip)
-    # TODO delete all the other rights things?
-    models.RightsStatementCopyright.objects.filter(rightsstatement__in=del_rights).delete()
+    parse_dc(sip_uuid, root)
 
-    models.RightsStatementRightsGranted.objects.filter(rightsstatement__in=del_rights).delete()
-    del_rights.delete()
-
-    amds = root.xpath('mets:amdSec/mets:rightsMD/parent::*', namespaces=ns.NSMAP)
-    if amds:
-        amd = amds[0]
-        # Get rightsMDs
-        # METS from original AIPs will not have @STATUS, and reingested AIPs will have only one @STATUS that is 'updated'
-        rights_stmts = amd.xpath('mets:rightsMD[not(@STATUS) or @STATUS="current"]/mets:mdWrap[@MDTYPE="PREMIS:RIGHTS"]/*/premis:rightsStatement', namespaces=ns.NSMAP)
-
-        # Parse to DB
-        for statement in rights_stmts:
-            rights_basis = statement.findtext('premis:rightsBasis', namespaces=ns.NSMAP)
-            print('rights_basis', rights_basis)
-            rights = models.RightsStatement.objects.create(
-                metadataappliestotype=md_type_sip,
-                metadataappliestoidentifier=sip_uuid,
-                rightsstatementidentifiertype="",
-                rightsstatementidentifiervalue="",
-                rightsbasis=rights_basis,
-                status=models.METADATA_STATUS_REINGEST,
-            )
-            # TODO parse more than just RightsStatement
-            if rights_basis == 'Copyright':
-                cr_status = statement.findtext('.//premis:copyrightStatus', namespaces=ns.NSMAP) or ""
-                cr_jurisdiction = statement.findtext('.//premis:copyrightJurisdiction', namespaces=ns.NSMAP) or ""
-                cr_det_date = statement.findtext('.//premis:copyrightStatusDeterminationDate', namespaces=ns.NSMAP) or ""
-                cr_start_date = statement.findtext('.//premis:copyrightApplicableDates/premis:startDate', namespaces=ns.NSMAP) or ""
-                cr_end_date = statement.findtext('.//premis:copyrightApplicableDates/premis:endDate', namespaces=ns.NSMAP) or ""
-                cr_end_open = False
-                if cr_end_date == 'OPEN':
-                    cr_end_open = True
-                    cr_end_date = None
-                cr = models.RightsStatementCopyright.objects.create(
-                    rightsstatement=rights,
-                    copyrightstatus=cr_status,
-                    copyrightjurisdiction=cr_jurisdiction,
-                    copyrightstatusdeterminationdate=cr_det_date,
-                    copyrightapplicablestartdate=cr_start_date,
-                    copyrightapplicableenddate=cr_end_date,
-                    copyrightenddateopen=cr_end_open,
-                )
-                cr_id_type = statement.findtext('.//premis:copyrightDocumentationIdentifierType', namespaces=ns.NSMAP) or ""
-                cr_id_value = statement.findtext('.//premis:copyrightDocumentationIdentifierValue', namespaces=ns.NSMAP) or ""
-                cr_id_role = statement.findtext('.//premis:copyrightDocumentationRole', namespaces=ns.NSMAP) or ""
-                models.RightsStatementCopyrightDocumentationIdentifier.objects.create(
-                    rightscopyright=cr,
-                    copyrightdocumentationidentifiertype=cr_id_type,
-                    copyrightdocumentationidentifiervalue=cr_id_value,
-                    copyrightdocumentationidentifierrole=cr_id_role,
-                )
-                cr_note = statement.findtext('.//premis:copyrightNote', namespaces=ns.NSMAP) or ""
-                models.RightsStatementCopyrightNote.objects.create(
-                    rightscopyright=cr,
-                    copyrightnote=cr_note,
-                )
-
-            # TODO Do all RightsStatement's have a RightsStatementRightsGranted?
-            rights_act = statement.findtext('.//premis:rightsGranted/premis:act', namespaces=ns.NSMAP) or ""
-            rights_start_date = statement.findtext('.//premis:rightsGranted/premis:termOfRestriction/premis:startDate', namespaces=ns.NSMAP) or ""
-            rights_end_date = statement.findtext('.//premis:rightsGranted/premis:termOfRestriction/premis:endDate', namespaces=ns.NSMAP) or ""
-            rights_end_open = False
-            if rights_end_date == 'OPEN':
-                rights_end_date = None
-                rights_end_open = True
-            print('rights_act', rights_act)
-            print('rights_start_date', rights_start_date)
-            print('rights_end_date', rights_end_date)
-            print('rights_end_open', rights_end_open)
-            rights_granted = models.RightsStatementRightsGranted.objects.create(
-                rightsstatement=rights,
-                act=rights_act,
-                startdate=rights_start_date,
-                enddate=rights_end_date,
-                enddateopen=rights_end_open,
-            )
-
-            rights_note = statement.findtext('.//premis:rightsGranted/premis:rightsGrantedNote', namespaces=ns.NSMAP) or ""
-            print('rights_note', rights_note)
-            models.RightsStatementRightsGrantedNote.objects.create(
-                rightsgranted=rights_granted,
-                rightsgrantednote=rights_note,
-            )
-
-            rights_restriction = statement.findtext('.//premis:rightsGranted/premis:restriction', namespaces=ns.NSMAP) or ""
-            print('rights_restriction', rights_restriction)
-            models.RightsStatementRightsGrantedRestriction.objects.create(
-                rightsgranted=rights_granted,
-                restriction=rights_restriction,
-            )
+    parse_rights(sip_uuid, root)
 
     # Update processingMCP
     processing_path = os.path.join(sip_path, 'processingMCP.xml')
