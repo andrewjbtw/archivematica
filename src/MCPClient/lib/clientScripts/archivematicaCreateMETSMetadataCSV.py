@@ -78,9 +78,9 @@ def parseMetadataCSV(metadataCSVFilePath):
             if firstRow:  # header row
                 type = row[0].lower()
                 if type == "filename":
-                    CSVMetadata[0].extend(row)
+                    simpleMetadataCSVkey.extend(row)
                 elif type == "parts":
-                    CSVMetadata[2].extend(row)
+                    compoundMetadataCSVkey.extend(row)
                 else:
                     print >>sys.stderr, "error parsing: ", metadataCSVFilePath
                     print >>sys.stderr, "unsupported: ", type
@@ -96,6 +96,8 @@ def parseMetadataCSV(metadataCSVFilePath):
                     if directory.endswith("/"):
                         directory = directory[:-1]
                     compoundMetadataCSV[directory] = row
+    global CSVMetadata
+    return CSVMetadata
 
 
 if __name__ == '__main__':
