@@ -1,4 +1,5 @@
 
+import collections
 import datetime
 from lxml import etree
 import os
@@ -7,6 +8,7 @@ import sys
 import archivematicaXMLNamesSpace as ns
 import archivematicaCreateMETS2 as createmets2
 import archivematicaCreateMETSRights as createmetsrights
+import archivematicaCreateMETSMetadataCSV as createmetscsv
 
 sys.path.append("/usr/lib/archivematica/archivematicaCommon")
 import archivematicaFunctions
@@ -235,6 +237,7 @@ def add_new_files(root, sip_uuid, sip_dir, now):
     # How tell new file from old with same name?
     new_files = []
     metadata_path = os.path.join(sip_dir, 'objects', 'metadata')
+    metadata_csv = None
     for dirpath, _, filenames in os.walk(metadata_path):
         for filename in filenames:
             current_loc = os.path.join(dirpath, filename).replace(sip_dir, '%SIPDirectory%', 1)
@@ -251,6 +254,8 @@ def add_new_files(root, sip_uuid, sip_dir, now):
                     currentlocation=current_loc,
                 )
                 new_files.append(f)
+                if rel_path == 'objects/metadata/metadata.csv':
+                    metadata_csv = f
             else:
                 print 'found, no further work needed'
 
@@ -304,9 +309,101 @@ def add_new_files(root, sip_uuid, sip_dir, now):
     #     root.find('mets:fileSec', namespaces=ns.NSMAP).set('LASTMODDATE', now)
     #     root.find('mets:structMap', namespaces=ns.NSMAP).set('LASTMODDATE', now)
 
-    # TODO Parse metadata.csv and add dmdSecs
+    # Parse metadata.csv and add dmdSecs
+    if metadata_csv:
+        update_metadata_csv(root, metadata_csv, sip_uuid, sip_dir, now)
 
     return root
+
+
+def update_metadata_csv(root, metadata_csv, sip_uuid, sip_dir, now):
+    print 'Parse new metadata.csv'
+    full_path = metadata_csv.currentlocation.replace('%SIPDirectory%', sip_dir, 1)
+    csvmetadata = createmetscsv.parseMetadataCSV(full_path)
+
+    # Restructure parsed metadata to make a dict joining keys list and values
+    # list for each file.
+    file_keys, file_md, compound_keys, compound_md = csvmetadata
+    # Drop the first key & value, as that is the filename
+    for k, v in file_md.iteritems():
+        file_md[k] = collections.OrderedDict(zip(file_keys[1:], v[1:]))
+    # TODO Add compound metadata
+    for k, v in compound_md.iteritems():
+        compound_md[k] = collections.OrderedDict(zip(compound_keys[1:], v[1:]))
+
+    # Set globalDmdSecCounter so createDmdSecsFromCSVParsedMetadata will work
+    createmets2.globalDmdSecCounter = int(root.xpath('count(mets:dmdSec)', namespaces=ns.NSMAP))
+
+    # dmdSecs added after existing dmdSecs or metsHdr if none
+    try:
+        add_after = root.findall('mets:dmdSec', namespaces=ns.NSMAP)[-1]
+    except IndexError:
+        add_after = root.find('mets:metsHdr', namespaces=ns.NSMAP)
+
+    aip_div = root.find('mets:structMap[@TYPE="physical"]/mets:div', namespaces=ns.NSMAP)
+
+    # FIXME Does this have to support having non DC metadata in the CSV?  Assuming not
+    for f, md in file_md.iteritems():
+        # Verify file is in AIP
+        print 'Looking for', f, 'from metadata.csv in SIP,',
+        # Find File with original or current locationg matching metadata.csv
+        # Prepend % to match the end of %SIPDirectory% or %transferDirectory%
+        try:
+            file_obj = models.File.objects.get(sip_id=sip_uuid, originallocation__endswith='%' + f)
+        except models.File.DoesNotExist:
+            try:
+                file_obj = models.File.objects.get(sip_id=sip_uuid, currentlocation__endswith='%' + f)
+            except models.File.DoesNotExist:
+                print 'not found'
+                continue
+        print 'found'
+
+        # Find structMap div to associate with
+        split_path = file_obj.currentlocation.replace('%SIPDirectory%', '', 1).split('/')
+        obj_div = aip_div
+        for label in split_path:
+            child = obj_div.find('mets:div[@LABEL="' + label + '"]', namespaces=ns.NSMAP)
+            if child is None:
+                print f, 'not in structMap'
+                break
+            obj_div = child
+        if obj_div is None:
+            continue
+        ids = obj_div.get('DMDID', '')
+
+        # Create dmdSec
+        new_dmdsecs = createmets2.createDmdSecsFromCSVParsedMetadata(md)
+
+        # Add DMDIDs
+        new_ids = [d.get('ID') for d in new_dmdsecs]
+        new_ids = ids.split() + new_ids
+        print f, 'associated with', ' '.join(new_ids)
+        obj_div.set('DMDID', ' '.join(new_ids))
+
+        # Update old dmdSecs if needed
+        new = False
+        if not ids:
+            # Newly generated dmdSec is the original
+            new = True
+        else:
+            # Find the dmdSec with no status and mark it original
+            search_ids = ' or '.join(['@ID="%s"' % x for x in ids.split()])
+            dmdsecs = root.xpath('mets:dmdSec[%s][not(@STATUS)]' % search_ids, namespaces=ns.NSMAP)
+            for d in dmdsecs:
+                d.set('STATUS', 'original')
+                print d.get('ID'), 'STATUS is original'
+
+        # Add dmdSecs to document
+        for d in new_dmdsecs:
+            d.set('CREATED', now)
+            if new:
+                d.set('STATUS', 'original')
+            else:
+                d.set('STATUS', 'updated')
+            print d.get('ID'), 'STATUS is', d.get('STATUS')
+
+            add_after.addnext(d)
+            add_after = d
 
 
 def update_mets(sip_dir, sip_uuid):
