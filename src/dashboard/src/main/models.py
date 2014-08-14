@@ -349,6 +349,7 @@ class Agent(models.Model):
     identifiertype = models.TextField(db_column='agentIdentifierType')
     identifiervalue = models.TextField(db_column='agentIdentifierValue')
     name = models.TextField(db_column='agentName')
+    agent_type = models.TextField(db_column='agentType')
 
     class Meta:
         db_table = u'Agents'
