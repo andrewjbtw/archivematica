@@ -42,21 +42,18 @@ class unitDIP(unit):
 
     def reloadFileList(self):
         self.fileList = {}
-        #os.walk(top[, topdown=True[, onerror=None[, followlinks=False]]])
         currentPath = self.currentPath.replace("%sharedPath%", \
                                                archivematicaMCP.config.get('MCPServer', "sharedDirectory"), 1) + "/"
         for directory, subDirectories, files in os.walk(currentPath):
             directory = directory.replace( currentPath, "%SIPDirectory%", 1)
             for file in files:
                 filePath = os.path.join(directory, file)
-                #print filePath
                 self.fileList[filePath] = unitFile(filePath)
 
         sql = """SELECT  fileUUID, currentLocation FROM Files WHERE sipUUID =  '""" + self.UUID + "'" #AND Files.removedTime = 0; TODO
         c, sqlLock = databaseInterface.querySQL(sql)
         row = c.fetchone()
         while row != None:
-            #print row
             UUID = row[0]
             currentPath = row[1]
             if currentPath in self.fileList:
@@ -72,19 +69,7 @@ class unitDIP(unit):
 
 
     def reload(self):
-        #sql = """SELECT * FROM SIPs WHERE sipUUID =  '""" + self.UUID + "'"
-        #c, sqlLock = databaseInterface.querySQL(sql)
-        #row = c.fetchone()
-        #while row != None:
-        #    print row
-        #    #self.UUID = row[0]
-        #    self.createdTime = row[1]
-        #    self.currentPath = row[2]
-        #    row = c.fetchone()
-        #sqlLock.release()
-
-        #no-op for reload on DIP
-        return
+        pass
 
 
     def getReplacementDic(self, target):

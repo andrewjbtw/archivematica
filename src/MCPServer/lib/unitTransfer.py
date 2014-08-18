@@ -45,7 +45,7 @@ class unitTransfer(unit):
     def __init__(self, currentPath, UUID=""):
         self.owningUnit = None
         self.unitType = "Transfer"
-        #Just Use the end of the directory name
+        #Just use the end of the directory name
         self.pathString = "%transferDirectory%"
         currentPath2 = currentPath.replace(archivematicaMCP.config.get('MCPServer', "sharedDirectory"), \
                        "%sharedPath%", 1)
@@ -80,12 +80,9 @@ class unitTransfer(unit):
     def reloadFileList(self):
         """Match files to their UUID's via their location and the File table's currentLocation"""
         self.fileList = {}
-        #os.walk(top[, topdown=True[, onerror=None[, followlinks=False]]])
         currentPath = self.currentPath.replace("%sharedPath%", \
                                                archivematicaMCP.config.get('MCPServer', "sharedDirectory"), 1) + "/"
-        #print "currentPath: ", currentPath, type(currentPath)
         try:
-            #print currentPath, type(currentPath)
             for directory, subDirectories, files in os.walk(currentPath):
                 directory = directory.replace( currentPath, "%transferDirectory%", 1) 
                 for file in files:
@@ -96,16 +93,12 @@ class unitTransfer(unit):
                     self.fileList[filePath] = unitFile(filePath, owningUnit=self)
 
             sql = """SELECT  fileUUID, currentLocation, fileGrpUse FROM Files WHERE removedTime = 0 AND transferUUID =  '""" + self.UUID + "'"
-            #print sql
             c, sqlLock = databaseInterface.querySQL(sql)
             row = c.fetchone()
-            #print self.fileList
             while row != None:
-                #print row
                 UUID = row[0]
                 currentPath = row[1]
                 fileGrpUse = row[2]
-                #print currentPath in self.fileList, row
                 if currentPath in self.fileList:
                     self.fileList[currentPath].UUID = UUID
                     self.fileList[currentPath].fileGrpUse = fileGrpUse

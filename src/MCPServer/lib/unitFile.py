@@ -59,7 +59,7 @@ class unitFile(unit):
             }
 
     def reload(self):
-        return
+        pass
 
     def reloadFileList(self):
-        return
+        pass

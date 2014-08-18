@@ -50,7 +50,6 @@ class unitSIP(unit):
     def reloadFileList(self):
         """Match files to their UUID's via their location and the File table's currentLocation"""
         self.fileList = {}
-        #os.walk(top[, topdown=True[, onerror=None[, followlinks=False]]])
         currentPath = self.currentPath.replace("%sharedPath%", \
                                                archivematicaMCP.config.get('MCPServer', "sharedDirectory"), 1) + "/"
         for directory, subDirectories, files in os.walk(currentPath):
@@ -60,14 +59,12 @@ class unitSIP(unit):
                     filePath = os.path.join(directory, file)
                 else:
                     filePath = directory + file
-                #print filePath
                 self.fileList[filePath] = unitFile(filePath, owningUnit=self)
 
         sql = """SELECT  fileUUID, currentLocation, fileGrpUse FROM Files WHERE removedTime = 0 AND sipUUID =  '""" + self.UUID + "'"
         c, sqlLock = databaseInterface.querySQL(sql)
         row = c.fetchone()
         while row != None:
-            #print row
             UUID = row[0]
             currentPath = row[1]
             fileGrpUse = row[2]
