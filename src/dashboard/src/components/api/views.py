@@ -252,8 +252,8 @@ def start_reingest(request):
         dest = os.path.join(shared_directory_path, 'watchedDirectories', 'system', 'reingestAIP', '')
         try:
             shutil.move(source, dest)
-        except shutil.Error as e:
-            error = e.message
+        except (shutil.Error, OSError) as e:
+            error = e.message or "Unable to move reingested AIP to start reingest."
         if error:
             response = {'error': True, 'message': error}
             return helpers.json_response(response, status_code=500)
