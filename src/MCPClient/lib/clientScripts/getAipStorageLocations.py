@@ -1,24 +1,25 @@
 #!/usr/bin/python2 -OO
 
 import logging
-from logging.handlers import RotatingFileHandler
 import os
 import sys
 
+path = "/usr/lib/archivematica/archivematicaCommon"
+if path not in sys.path:
+    sys.path.append(path)
+from custom_handlers import GroupWriteRotatingFileHandler
+import storageService as storage_service
+
 logger = logging.getLogger('archivematica.mcp.client')
-logger.addHandler(RotatingFileHandler("/var/log/archivematica/archivematica.log", maxBytes=4194304),
-    level=logging.INFO)
+logger.addHandler(GroupWriteRotatingFileHandler("/var/log/archivematica/archivematica.log",
+    maxBytes=4194304))
+logger.setLevel(logging.INFO)
 
 # Set up Django settings
 path = '/usr/share/archivematica/dashboard'
 if path not in sys.path:
     sys.path.append(path)
 os.environ['DJANGO_SETTINGS_MODULE'] = 'settings.common'
-
-path = "/usr/lib/archivematica/archivematicaCommon"
-if path not in sys.path:
-    sys.path.append(path)
-import storageService as storage_service
 
 
 def get_aip_storage_locations(purpose):

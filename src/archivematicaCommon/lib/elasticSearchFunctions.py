@@ -34,15 +34,17 @@ import time
 from xml.etree import ElementTree
 
 sys.path.append("/usr/lib/archivematica/archivematicaCommon")
+from custom_handlers import GroupWriteRotatingFileHandler
 import databaseInterface
 import version
 
 sys.path.append("/usr/lib/archivematica/archivematicaCommon/externals")
 import pyes, xmltodict
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(filename="/tmp/archivematicaDashboard.log",
-    level=logging.INFO)
+logger = logging.getLogger('archivematica.dashboard')
+logger.addHandler(GroupWriteRotatingFileHandler("/var/log/archivematica/dashboard.log",
+     maxBytes=4194304))
+logger.setLevel(logging.INFO)
 
 pathToElasticSearchServerConfigFile='/etc/elasticsearch/elasticsearch.yml'
 MAX_QUERY_SIZE = 50000  # TODO Check that this is a reasonable number

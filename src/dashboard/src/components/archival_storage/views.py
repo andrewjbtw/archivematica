@@ -19,7 +19,6 @@ import ast
 import httplib
 import json
 import logging
-from logging.handlers import RotatingFileHandler
 import os
 import requests
 import shutil
@@ -41,6 +40,7 @@ from components import advanced_search
 from components import decorators
 from components import helpers
 sys.path.append("/usr/lib/archivematica/archivematicaCommon")
+from custom_handlers import GroupWriteRotatingFileHandler
 import databaseFunctions
 import elasticSearchFunctions
 import storageService as storage_service
@@ -48,8 +48,9 @@ sys.path.append("/usr/lib/archivematica/archivematicaCommon/externals")
 import pyes
 
 logger = logging.getLogger('archivematica.dashboard')
-logger.addHandler(RotatingFileHandler("/var/log/archivematica/dashboard.log", maxBytes=4194304),
-    level=logging.INFO)
+logger.addHandler(GroupWriteRotatingFileHandler("/var/log/archivematica/dashboard.log",
+     maxBytes=4194304))
+logger.setLevel(logging.INFO)
 
 AIPSTOREPATH = '/var/archivematica/sharedDirectory/www/AIPsStore'
 

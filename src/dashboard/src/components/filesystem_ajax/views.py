@@ -34,6 +34,7 @@ from main import models
 
 sys.path.append("/usr/lib/archivematica/archivematicaCommon")
 import archivematicaFunctions
+from custom_handlers import GroupWriteRotatingFileHandler
 import databaseFunctions
 import elasticSearchFunctions
 import storageService as storage_service
@@ -42,9 +43,10 @@ import storageService as storage_service
 import locale
 locale.setlocale(locale.LC_ALL, '')
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(filename="/tmp/archivematicaDashboard.log",
-    level=logging.INFO)
+logger = logging.getLogger('archivematica.dashboard')
+logger.addHandler(GroupWriteRotatingFileHandler("/var/log/archivematica/dashboard.log",
+     maxBytes=4194304))
+logger.setLevel(logging.INFO)
 
 SHARED_DIRECTORY_ROOT   = '/var/archivematica/sharedDirectory'
 ACTIVE_TRANSFER_DIR     = SHARED_DIRECTORY_ROOT + '/watchedDirectories/activeTransfers'

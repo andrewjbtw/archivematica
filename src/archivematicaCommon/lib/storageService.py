@@ -1,17 +1,18 @@
 import base64
 import logging
-from logging.handlers import RotatingFileHandler
 import os
 import platform
 import slumber
 import sys
 
 sys.path.append("/usr/lib/archivematica/archivematicaCommon")
+from custom_handlers import GroupWriteRotatingFileHandler
 import databaseInterface
 
 logger = logging.getLogger('archivematica.common')
-logger.addHandler(RotatingFileHandler("/var/log/archivematica/archivematica.log", maxBytes=4194304),
-    level=logging.INFO)
+logger.addHandler(GroupWriteRotatingFileHandler("/var/log/archivematica/archivematica.log",
+     maxBytes=4194304))
+logger.setLevel(logging.INFO)
 
 ######################### INTERFACE WITH STORAGE API #########################
 

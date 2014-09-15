@@ -22,7 +22,6 @@
 # @author Joseph Perry <joseph@artefactual.com>
 import argparse
 import logging
-from logging.handlers import RotatingFileHandler
 import os
 import sys
 from uuid import uuid4
@@ -30,11 +29,13 @@ from uuid import uuid4
 path = "/usr/lib/archivematica/archivematicaCommon"
 if path not in sys.path:
     sys.path.append(path)
+from custom_handlers import GroupWriteRotatingFileHandler
 import storageService as storage_service
 
 logger = logging.getLogger('archivematica.mcp.client')
-logger.addHandler(RotatingFileHandler("/var/log/archivematica/archivematica.log", maxBytes=4194304),
-    level=logging.INFO)
+logger.addHandler(GroupWriteRotatingFileHandler("/var/log/archivematica/archivematica.log",
+    maxBytes=4194304))
+logger.setLevel(logging.INFO)
 
 
 def store_aip(aip_destination_uri, aip_path, sip_uuid, sip_name, sip_type):

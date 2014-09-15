@@ -8,11 +8,13 @@ import sys
 path = "/usr/lib/archivematica/archivematicaCommon"
 if path not in sys.path:
     sys.path.append(path)
+from custom_handlers import GroupWriteRotatingFileHandler
 import storageService as storage_service
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(filename="/tmp/archivematica.log",
-    level=logging.INFO)
+logger = logging.getLogger('archivematica.dashboard')
+logger.addHandler(GroupWriteRotatingFileHandler("/var/log/archivematica/dashboard.log",
+     maxBytes=4194304))
+logger.setLevel(logging.INFO)
 
 
 def main(transfer_uuid, transfer_path):
