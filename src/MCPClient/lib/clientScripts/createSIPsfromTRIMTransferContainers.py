@@ -59,14 +59,15 @@ if __name__ == '__main__':
     
         #get the database list of files in the objects directory
         #for each file, confirm it's in the SIP objects directory, and update the current location/ owning SIP'
-        sql = """SELECT  fileUUID, currentLocation FROM Files WHERE removedTime = 0 AND currentLocation LIKE '\%transferDirectory\%objects/""" + container + """/%' AND transferUUID =  '""" + transferUUID + "'"
-        for row in databaseInterface.queryAllSQL(sql):
+        current_location_query = '%transferDirectory%objects/{}/%'.format(container)
+        sql = """SELECT fileUUID, currentLocation FROM Files WHERE removedTime = 0 AND currentLocation LIKE %s AND transferUUID = %s"""
+        for row in databaseInterface.queryAllSQL(sql, (current_location_query, transferUUID,)):
             fileUUID = row[0]
             currentPath = databaseFunctions.deUnicode(row[1]).replace('%transferDirectory%objects/' + container, '%transferDirectory%objects')
             currentSIPFilePath = currentPath.replace("%transferDirectory%", tmpSIPDir)
             if os.path.isfile(currentSIPFilePath):
-                sql = """UPDATE Files SET currentLocation='%s', sipUUID='%s' WHERE fileUUID='%s'""" % (MySQLdb.escape_string(currentPath.replace("%transferDirectory%", "%SIPDirectory%")), sipUUID, fileUUID)
-                databaseInterface.runSQL(sql)
+                sql = """UPDATE Files SET currentLocation=%s, sipUUID=%s WHERE fileUUID=%s"""
+                databaseInterface.runSQL(sql, (currentPath.replace("%transferDirectory%", "%SIPDirectory%"), sipUUID, fileUUID))
             else:
                 print >>sys.stderr, "file not found: ", currentSIPFilePath
 

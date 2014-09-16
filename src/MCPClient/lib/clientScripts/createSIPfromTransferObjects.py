@@ -46,8 +46,8 @@ if __name__ == '__main__':
 
     #create row in SIPs table if one doesn't already exist
     lookup_path = destSIPDir.replace(sharedPath, '%sharedPath%')
-    sql = """SELECT sipUUID FROM SIPs WHERE currentPath = '""" + MySQLdb.escape_string(lookup_path) + "';"
-    rows = databaseInterface.queryAllSQL(sql)
+    sql = """SELECT sipUUID FROM SIPs WHERE currentPath = %s;"""
+    rows = databaseInterface.queryAllSQL(sql, (lookup_path,))
     if len(rows) > 0:
         row = rows[0]
         sipUUID = row[0]
@@ -71,14 +71,14 @@ if __name__ == '__main__':
 
     #get the database list of files in the objects directory
     #for each file, confirm it's in the SIP objects directory, and update the current location/ owning SIP'
-    sql = """SELECT  fileUUID, currentLocation FROM Files WHERE removedTime = 0 AND currentLocation LIKE '\%transferDirectory\%objects%' AND transferUUID =  '""" + transferUUID + "'"
-    for row in databaseInterface.queryAllSQL(sql):
+    sql = """SELECT fileUUID, currentLocation FROM Files WHERE removedTime = 0 AND currentLocation LIKE %s AND transferUUID = %s;"""
+    for row in databaseInterface.queryAllSQL(sql, ('%transferDirectory%objects%', transferUUID,)):
         fileUUID = row[0]
         currentPath = databaseFunctions.deUnicode(row[1])
         currentSIPFilePath = currentPath.replace("%transferDirectory%", tmpSIPDir)
         if os.path.isfile(currentSIPFilePath):
-            sql = """UPDATE Files SET currentLocation='%s', sipUUID='%s' WHERE fileUUID='%s'""" % (MySQLdb.escape_string(currentPath.replace("%transferDirectory%", "%SIPDirectory%")), sipUUID, fileUUID)
-            databaseInterface.runSQL(sql)
+            sql = """UPDATE Files SET currentLocation=%s, sipUUID=%s WHERE fileUUID=%s"""
+            databaseInterface.runSQL(sql, (currentPath.replace("%transferDirectory%", "%SIPDirectory%"), sipUUID, fileUUID))
         else:
             print >>sys.stderr, "file not found: ", currentSIPFilePath
 
