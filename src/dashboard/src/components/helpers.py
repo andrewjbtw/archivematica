@@ -75,7 +75,7 @@ def keynat(string):
 def json_response(data):
     return HttpResponse(
         json.dumps(data),
-        mimetype='application/json'
+        content_type='application/json'
     )
 
 # this class wraps Pyes search results so the Django Paginator class

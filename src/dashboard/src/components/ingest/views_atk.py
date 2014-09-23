@@ -98,7 +98,7 @@ def ingest_upload_atk_save(request, uuid):
 
     return HttpResponse(
         json.JSONEncoder().encode(response),
-        mimetype='application/json'
+        content_type='application/json'
     )
 
 def ingest_upload_atk_save_to_db(request, uuid):

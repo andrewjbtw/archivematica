@@ -105,7 +105,7 @@ def unapproved_transfers(request):
                 if error != None:
                     return HttpResponseServerError(
                         json.dumps(response),
-                        mimetype='application/json'
+                        content_type='application/json'
                     )
                 else:
                     return helpers.json_response(response)
@@ -114,7 +114,7 @@ def unapproved_transfers(request):
             response['error']   = True 
             return HttpResponseForbidden(
                 json.dumps(response),
-                mimetype='application/json'
+                content_type='application/json'
             )
     else:
         return Http404
@@ -146,7 +146,7 @@ def approve_transfer(request):
             if error != None:
                 return HttpResponseServerError(
                     json.dumps(response),
-                    mimetype='application/json'
+                    content_type='application/json'
                 )
             else:
                 return helpers.json_response(response)
@@ -155,7 +155,7 @@ def approve_transfer(request):
             response['error']   = True
             return HttpResponseForbidden(
                 json.dumps(response),
-                mimetype='application/json'
+                content_type='application/json'
             )
     else:
         raise Http404
