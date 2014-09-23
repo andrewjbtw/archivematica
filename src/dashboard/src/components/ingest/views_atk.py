@@ -15,11 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with Archivematica.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.urlresolvers import reverse
 from django.shortcuts import render
 from django.http import Http404, HttpResponse, HttpResponseRedirect, HttpResponseServerError
-from django.utils import simplejson
 import os, sys, MySQLdb, ast
 from main import models
 from components import helpers
@@ -97,7 +97,7 @@ def ingest_upload_atk_save(request, uuid):
         }
 
     return HttpResponse(
-        simplejson.JSONEncoder().encode(response),
+        json.JSONEncoder().encode(response),
         mimetype='application/json'
     )
 
@@ -218,14 +218,14 @@ def ingest_upload_atk_get_collection_ids(db, search_pattern=''):
 
 def ingest_upload_atk_match_dip_objects_to_resource_levels(request, uuid, resource_id):
     # load object relative paths
-    object_path_json = simplejson.JSONEncoder().encode(
+    object_path_json = json.JSONEncoder().encode(
         ingest_upload_atk_get_dip_object_paths(uuid)
     )
 
     try:
         # load resource and child data
         db = ingest_upload_atk_db_connection()
-        resource_data_json = simplejson.JSONEncoder().encode(
+        resource_data_json = json.JSONEncoder().encode(
             atk.get_resource_children(db, resource_id)
         )
     except:
@@ -301,14 +301,14 @@ def ingest_upload_atk_get_dip_object_paths(uuid):
 
 def ingest_upload_atk_match_dip_objects_to_resource_component_levels(request, uuid, resource_component_id):
     # load object relative paths
-    object_path_json = simplejson.JSONEncoder().encode(
+    object_path_json = json.JSONEncoder().encode(
         ingest_upload_atk_get_dip_object_paths(uuid)
     )
 
     try:
         # load resource and child data
         db = ingest_upload_atk_db_connection()
-        resource_data_json = simplejson.JSONEncoder().encode(
+        resource_data_json = json.JSONEncoder().encode(
             atk.get_resource_component_children(db, resource_component_id)
         )
     except:
