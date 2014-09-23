@@ -75,29 +75,28 @@ class StorageSettingsForm(SettingsForm):
     storage_service_url = forms.URLField(required=False,
         label="Full URL of the storage service")
 
-EAD_SHOW_CHOICES = [['embed', 'embed'], ['new','new'], ['none','none'], ['other','other'], ['replace', 'replace']]
-EAD_ACTUATE_CHOICES = [['none', 'none'], ['onLoad','onLoad'],['other','other'], ['onRequest', 'onRequest']]
-PREMIS_CHOICES = [[ 'yes', 'yes'], ['no', 'no'], ['premis', 'base on PREMIS']]
 
 class ArchivistsToolkitConfigForm(ModelForm):
-    id = forms.HiddenInput()
-    host = forms.CharField(widget=TextInput(attrs=settings.INPUT_ATTRS), label="db host:")
-    port = forms.CharField(widget=TextInput(attrs=settings.INPUT_ATTRS), label="db port:")
-    dbname = forms.CharField(widget=TextInput(attrs=settings.INPUT_ATTRS), label="db name:")
-    dbuser = forms.CharField(widget=TextInput(attrs=settings.INPUT_ATTRS), label="db user:")
-    dbpass = forms.CharField(widget=forms.PasswordInput(), label="db password:", required=False)
-    atuser = forms.CharField(widget=TextInput(attrs=settings.INPUT_ATTRS), label="at username:")
-    premis = forms.ChoiceField(widget=RadioSelect(), label="Restrictions Apply:", choices=PREMIS_CHOICES)
-    ead_actuate = forms.ChoiceField(widget=RadioSelect(), label="EAD DAO Actuate:", choices=EAD_ACTUATE_CHOICES)
-    ead_show = forms.ChoiceField(widget=RadioSelect(), label="EAD DAO Show:", choices=EAD_SHOW_CHOICES)
-    use_statement = forms.CharField(widget=TextInput(attrs=settings.INPUT_ATTRS), label="Use statement:")
-    object_type = forms.CharField(widget=TextInput(attrs=settings.INPUT_ATTRS), label="Object type:", required=False)
-    access_conditions = forms.CharField(widget=TextInput(attrs=settings.INPUT_ATTRS), label="Conditions governing access:", required=False)
-    use_conditions = forms.CharField(widget=TextInput(attrs=settings.INPUT_ATTRS), label="Conditions governing use:", required=False)
-    uri_prefix = forms.CharField(widget=TextInput(attrs=settings.INPUT_ATTRS), label="URL prefix:")    
- 
     class Meta:
         model = ArchivistsToolkitConfig
+        fields = ('host', 'port', 'dbname', 'dbuser', 'dbpass', 'atuser', 'premis', 'ead_actuate', 'ead_show', 'object_type', 'use_statement', 'uri_prefix', 'access_conditions', 'use_conditions')
+        widgets = {
+            'host': TextInput(attrs=settings.INPUT_ATTRS),
+            'port': TextInput(attrs=settings.INPUT_ATTRS),
+            'dbname': TextInput(attrs=settings.INPUT_ATTRS),
+            'dbuser': TextInput(attrs=settings.INPUT_ATTRS),
+            'dbpass': forms.PasswordInput(),
+            'atuser': TextInput(attrs=settings.INPUT_ATTRS),
+            'premis': RadioSelect(),
+            'ead_actuate': RadioSelect(),
+            'ead_show': RadioSelect(),
+            'object_type': TextInput(attrs=settings.INPUT_ATTRS),
+            'use_statement': TextInput(attrs=settings.INPUT_ATTRS),
+            'uri_prefix': TextInput(attrs=settings.INPUT_ATTRS),
+            'access_conditions': TextInput(attrs=settings.INPUT_ATTRS),
+            'use_conditions': TextInput(attrs=settings.INPUT_ATTRS),
+        }
+
 
 class TaxonomyTermForm(ModelForm):
     class Meta:

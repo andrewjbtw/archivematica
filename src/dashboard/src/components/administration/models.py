@@ -13,20 +13,24 @@ class ReplacementDict(models.Model):
     class Meta:
         db_table = u'ReplacementDict'
 
+
 class ArchivistsToolkitConfig(models.Model):
     id = UUIDPkField()
-    host = models.CharField(max_length=50)
-    port = models.IntegerField(default=3306)
-    dbname = models.CharField(max_length=50)
-    dbuser = models.CharField(max_length=50)
-    dbpass = models.CharField(max_length=50)
-    atuser = models.CharField(max_length=50)
-    premis = models.CharField(max_length=10)
-    ead_actuate = models.CharField(max_length=50)
-    ead_show = models.CharField(max_length=50)
-    object_type = models.CharField(max_length=50, blank=True, null=True)
-    use_statement = models.CharField(max_length=50)
-    uri_prefix = models.CharField(max_length=50)
-    access_conditions = models.CharField(max_length=50, blank=True, null=True)
-    use_conditions = models.CharField(max_length=50, blank=True, null=True)
+    host = models.CharField(max_length=50, verbose_name='Database Host')
+    port = models.IntegerField(default=3306, verbose_name='Database Port')
+    dbname = models.CharField(max_length=50, verbose_name='Database Name')
+    dbuser = models.CharField(max_length=50, verbose_name='Database User')
+    dbpass = models.CharField(max_length=50, null=True, blank=True, verbose_name='Database Password')
+    atuser = models.CharField(max_length=50, verbose_name='Archivists Toolkit Username')
+    PREMIS_CHOICES = [('yes', 'Yes'), ('no', 'No'), ('premis', 'Base on PREMIS')]
+    premis = models.CharField(max_length=10, choices=PREMIS_CHOICES, verbose_name='Restrictions Apply', blank=False, default='yes')
+    EAD_ACTUATE_CHOICES = [('none', 'None'), ('onLoad','onLoad'), ('other','other'), ('onRequest', 'onRequest')]
+    ead_actuate = models.CharField(max_length=50, choices=EAD_ACTUATE_CHOICES, verbose_name='EAD DAO Actuate', blank=False, default='none')
+    EAD_SHOW_CHOICES = [('embed', 'Embed'), ('new', 'New'), ('none', 'None'), ('other', 'Other'), ('replace', 'Replace')]
+    ead_show = models.CharField(max_length=50, choices=EAD_SHOW_CHOICES, verbose_name='EAD DAO Show', blank=False, default='embed')
+    object_type = models.CharField(max_length=50, blank=True, null=True, verbose_name='Object type')
+    use_statement = models.CharField(max_length=50, verbose_name='Use Statement')
+    uri_prefix = models.CharField(max_length=50, verbose_name='URL prefix')
+    access_conditions = models.CharField(max_length=50, blank=True, null=True, verbose_name='Conditions governing access')
+    use_conditions = models.CharField(max_length=50, blank=True, null=True, verbose_name='Conditions governing use')
 
