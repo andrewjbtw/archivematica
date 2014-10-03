@@ -348,7 +348,7 @@ class RightsStatementCopyright(models.Model):
     copyrightstatusdeterminationdate = models.TextField(db_column='copyrightStatusDeterminationDate', blank=True, verbose_name='Copyright determination date', help_text='Use ISO 8061 (YYYY-MM-DD)')
     copyrightapplicablestartdate = models.TextField(db_column='copyrightApplicableStartDate', blank=True, verbose_name='Copyright start date', help_text='Use ISO 8061 (YYYY-MM-DD)')
     copyrightapplicableenddate = models.TextField(db_column='copyrightApplicableEndDate', blank=True, verbose_name='Copyright end date', help_text='Use ISO 8061 (YYYY-MM-DD)')
-    copyrightenddateopen = models.BooleanField(db_column='copyrightApplicableEndDateOpen', verbose_name='Open End Date', help_text='Indicate end date is open')
+    copyrightenddateopen = models.BooleanField(default=False, db_column='copyrightApplicableEndDateOpen', verbose_name='Open End Date', help_text='Indicate end date is open')
 
     class Meta:
         db_table = u'RightsStatementCopyright'
@@ -380,7 +380,7 @@ class RightsStatementLicense(models.Model):
     licenseterms = models.TextField(db_column='licenseTerms', blank=True, verbose_name='License terms')
     licenseapplicablestartdate = models.TextField(db_column='licenseApplicableStartDate', blank=True, verbose_name='License start date', help_text='Use ISO 8061 (YYYY-MM-DD)')
     licenseapplicableenddate = models.TextField(db_column='licenseApplicableEndDate', blank=True, verbose_name='License end date', help_text='Use ISO 8061 (YYYY-MM-DD)')
-    licenseenddateopen = models.BooleanField(db_column='licenseApplicableEndDateOpen', verbose_name='Open End Date', help_text='Indicate end date is open')
+    licenseenddateopen = models.BooleanField(default=False, db_column='licenseApplicableEndDateOpen', verbose_name='Open End Date', help_text='Indicate end date is open')
 
     class Meta:
         db_table = u'RightsStatementLicense'
@@ -412,7 +412,7 @@ class RightsStatementRightsGranted(models.Model):
     act = models.TextField(db_column='act', blank=True)
     startdate = models.TextField(db_column='startDate', verbose_name='Start', help_text='Use ISO 8061 (YYYY-MM-DD)', blank=True)
     enddate = models.TextField(db_column='endDate', verbose_name='End', help_text='Use ISO 8061 (YYYY-MM-DD)', blank=True)
-    enddateopen = models.BooleanField(db_column='endDateOpen', verbose_name='Open End Date', help_text='Indicate end date is open')
+    enddateopen = models.BooleanField(default=False, db_column='endDateOpen', verbose_name='Open End Date', help_text='Indicate end date is open')
 
     class Meta:
         db_table = u'RightsStatementRightsGranted'
@@ -444,7 +444,7 @@ class RightsStatementStatuteInformation(models.Model):
     statutedeterminationdate = models.TextField(db_column='statuteInformationDeterminationDate', verbose_name='Statute determination date', help_text='Use ISO 8061 (YYYY-MM-DD)', blank=True)
     statuteapplicablestartdate = models.TextField(db_column='statuteApplicableStartDate', blank=True, verbose_name='Statute start date', help_text='Use ISO 8061 (YYYY-MM-DD)')
     statuteapplicableenddate = models.TextField(db_column='statuteApplicableEndDate', blank=True, verbose_name='Statute end date', help_text='Use ISO 8061 (YYYY-MM-DD)')
-    statuteenddateopen = models.BooleanField(db_column='statuteApplicableEndDateOpen', verbose_name='Open End Date', help_text='Indicate end date is open')
+    statuteenddateopen = models.BooleanField(default=False, db_column='statuteApplicableEndDateOpen', verbose_name='Open End Date', help_text='Indicate end date is open')
 
     class Meta:
         db_table = u'RightsStatementStatuteInformation'
@@ -476,7 +476,7 @@ class RightsStatementOtherRightsInformation(models.Model):
     otherrightsbasis = models.TextField(db_column='otherRightsBasis', verbose_name='Other rights basis', blank=True)
     otherrightsapplicablestartdate = models.TextField(db_column='otherRightsApplicableStartDate', blank=True, verbose_name='Other rights start date', help_text='Use ISO 8061 (YYYY-MM-DD)')
     otherrightsapplicableenddate = models.TextField(db_column='otherRightsApplicableEndDate', blank=True, verbose_name='Other rights end date', help_text='Use ISO 8061 (YYYY-MM-DD)')
-    otherrightsenddateopen = models.BooleanField(db_column='otherRightsApplicableEndDateOpen', verbose_name='Open End Date', help_text='Indicate end date is open')
+    otherrightsenddateopen = models.BooleanField(default=False, db_column='otherRightsApplicableEndDateOpen', verbose_name='Open End Date', help_text='Indicate end date is open')
 
     class Meta:
         db_table = u'RightsStatementOtherRightsInformation'
