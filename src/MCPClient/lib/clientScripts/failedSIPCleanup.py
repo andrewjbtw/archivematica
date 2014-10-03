@@ -4,10 +4,10 @@ import argparse
 import os
 import sys
 
-path = '/usr/share/archivematica/dashboard'
-if path not in sys.path:
-    sys.path.append(path)
+import django
+sys.path.append('/usr/share/archivematica/dashboard')
 os.environ['DJANGO_SETTINGS_MODULE'] = 'settings.common'
+django.setup()
 from main import models
 
 REJECTED = 'reject'

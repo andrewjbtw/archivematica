@@ -15,8 +15,10 @@ from executeOrRunSubProcess import executeOrRun
 import databaseFunctions
 from dicts import replace_string_values
 
+import django
 sys.path.append('/usr/share/archivematica/dashboard')
 os.environ['DJANGO_SETTINGS_MODULE'] = 'settings.common'
+django.setup()
 from fpr.models import FPRule, FormatVersion
 
 

@@ -10,10 +10,10 @@ from executeOrRunSubProcess import executeOrRun
 from databaseFunctions import insertIntoEvents, insertIntoFilesIDs
 from databaseInterface import getUTCDate
 
-path = '/usr/share/archivematica/dashboard'
-if path not in sys.path:
-    sys.path.append(path)
+import django
+sys.path.append('/usr/share/archivematica/dashboard')
 os.environ['DJANGO_SETTINGS_MODULE'] = 'settings.common'
+django.setup()
 from fpr.models import IDCommand, IDRule, FormatVersion
 from main.models import FileFormatVersion, File, UnitVariable
 

@@ -16,11 +16,10 @@ from databaseFunctions import insertIntoFPCommandOutput
 import databaseInterface
 from dicts import replace_string_values, ReplacementDict
 
-path = '/usr/share/archivematica/dashboard'
-if path not in sys.path:
-    sys.path.append(path)
+import django
+sys.path.append('/usr/share/archivematica/dashboard')
 os.environ['DJANGO_SETTINGS_MODULE'] = 'settings.common'
-
+django.setup()
 from fpr.models import FPRule, FormatVersion
 
 

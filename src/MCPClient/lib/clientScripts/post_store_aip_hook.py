@@ -8,8 +8,10 @@ sys.path.append('/usr/lib/archivematica/archivematicaCommon')
 import elasticSearchFunctions
 import storageService as storage_service
 
+import django
 sys.path.append('/usr/share/archivematica/dashboard')
 os.environ['DJANGO_SETTINGS_MODULE'] = 'settings.common'
+django.setup()
 from main import models
 
 def post_store_hook(sip_uuid):

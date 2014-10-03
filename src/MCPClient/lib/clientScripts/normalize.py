@@ -19,10 +19,10 @@ import databaseInterface
 import fileOperations
 from dicts import ReplacementDict
 
-path = '/usr/share/archivematica/dashboard'
-if path not in sys.path:
-    sys.path.append(path)
+import django
+sys.path.append('/usr/share/archivematica/dashboard')
 os.environ['DJANGO_SETTINGS_MODULE'] = 'settings.common'
+django.setup()
 from fpr.models import FPRule
 from main.models import Derivation, FileFormatVersion, File
 from annoying.functions import get_object_or_None

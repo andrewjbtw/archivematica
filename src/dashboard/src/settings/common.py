@@ -177,6 +177,8 @@ INSTALLED_APPS = (
     'tastypie',
 )
 
+TEST_RUNNER = 'django.test.runner.DiscoverRunner'
+
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
 EMAIL_FILE_PATH = '/tmp/dashboard-django'
 # A sample logging configuration. The only tangible logging
