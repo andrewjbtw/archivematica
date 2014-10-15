@@ -157,6 +157,9 @@ def parse_rights(sip_uuid, root):
     del_rights = models.RightsStatement.objects.filter(metadataappliestoidentifier=sip_uuid, metadataappliestotype=MD_TYPE_SIP)
     # TODO delete all the other rights things?
     models.RightsStatementCopyright.objects.filter(rightsstatement__in=del_rights).delete()
+    models.RightsStatementLicense.objects.filter(rightsstatement__in=del_rights).delete()
+    models.RightsStatementStatuteInformation.objects.filter(rightsstatement__in=del_rights).delete()
+    models.RightsStatementOtherRightsInformation.objects.filter(rightsstatement__in=del_rights).delete()
 
     models.RightsStatementRightsGranted.objects.filter(rightsstatement__in=del_rights).delete()
     del_rights.delete()
@@ -182,43 +185,134 @@ def parse_rights(sip_uuid, root):
             )
             # TODO parse more than just Copyright
             if rights_basis == 'Copyright':
-                cr_status = statement.findtext('.//premis:copyrightStatus', namespaces=ns.NSMAP) or ""
-                cr_jurisdiction = statement.findtext('.//premis:copyrightJurisdiction', namespaces=ns.NSMAP) or ""
-                cr_det_date = statement.findtext('.//premis:copyrightStatusDeterminationDate', namespaces=ns.NSMAP) or ""
-                cr_start_date = statement.findtext('.//premis:copyrightApplicableDates/premis:startDate', namespaces=ns.NSMAP) or ""
-                cr_end_date = statement.findtext('.//premis:copyrightApplicableDates/premis:endDate', namespaces=ns.NSMAP) or ""
-                cr_end_open = False
-                if cr_end_date == 'OPEN':
-                    cr_end_open = True
-                    cr_end_date = None
+                status = statement.findtext('.//premis:copyrightStatus', namespaces=ns.NSMAP) or ""
+                jurisdiction = statement.findtext('.//premis:copyrightJurisdiction', namespaces=ns.NSMAP) or ""
+                det_date = statement.findtext('.//premis:copyrightStatusDeterminationDate', namespaces=ns.NSMAP) or ""
+                start_date = statement.findtext('.//premis:copyrightApplicableDates/premis:startDate', namespaces=ns.NSMAP) or ""
+                end_date = statement.findtext('.//premis:copyrightApplicableDates/premis:endDate', namespaces=ns.NSMAP) or ""
+                end_open = False
+                if end_date == 'OPEN':
+                    end_open = True
+                    end_date = None
                 cr = models.RightsStatementCopyright.objects.create(
                     rightsstatement=rights,
-                    copyrightstatus=cr_status,
-                    copyrightjurisdiction=cr_jurisdiction,
-                    copyrightstatusdeterminationdate=cr_det_date,
-                    copyrightapplicablestartdate=cr_start_date,
-                    copyrightapplicableenddate=cr_end_date,
-                    copyrightenddateopen=cr_end_open,
+                    copyrightstatus=status,
+                    copyrightjurisdiction=jurisdiction,
+                    copyrightstatusdeterminationdate=det_date,
+                    copyrightapplicablestartdate=start_date,
+                    copyrightapplicableenddate=end_date,
+                    copyrightenddateopen=end_open,
                 )
-                cr_id_type = statement.findtext('.//premis:copyrightDocumentationIdentifierType', namespaces=ns.NSMAP) or ""
-                cr_id_value = statement.findtext('.//premis:copyrightDocumentationIdentifierValue', namespaces=ns.NSMAP) or ""
-                cr_id_role = statement.findtext('.//premis:copyrightDocumentationRole', namespaces=ns.NSMAP) or ""
+                id_type = statement.findtext('.//premis:copyrightDocumentationIdentifierType', namespaces=ns.NSMAP) or ""
+                id_value = statement.findtext('.//premis:copyrightDocumentationIdentifierValue', namespaces=ns.NSMAP) or ""
+                id_role = statement.findtext('.//premis:copyrightDocumentationRole', namespaces=ns.NSMAP) or ""
                 models.RightsStatementCopyrightDocumentationIdentifier.objects.create(
                     rightscopyright=cr,
-                    copyrightdocumentationidentifiertype=cr_id_type,
-                    copyrightdocumentationidentifiervalue=cr_id_value,
-                    copyrightdocumentationidentifierrole=cr_id_role,
+                    copyrightdocumentationidentifiertype=id_type,
+                    copyrightdocumentationidentifiervalue=id_value,
+                    copyrightdocumentationidentifierrole=id_role,
                 )
-                cr_note = statement.findtext('.//premis:copyrightNote', namespaces=ns.NSMAP) or ""
+                note = statement.findtext('.//premis:copyrightNote', namespaces=ns.NSMAP) or ""
                 models.RightsStatementCopyrightNote.objects.create(
                     rightscopyright=cr,
-                    copyrightnote=cr_note,
+                    copyrightnote=note,
+                )
+            elif rights_basis == 'License':
+                terms = statement.findtext('.//premis:licenseTerms', namespaces=ns.NSMAP) or ""
+                start_date = statement.findtext('.//premis:licenseApplicableDates/premis:startDate', namespaces=ns.NSMAP) or ""
+                end_date = statement.findtext('.//premis:licenseApplicableDates/premis:endDate', namespaces=ns.NSMAP) or ""
+                end_open = False
+                if end_date == 'OPEN':
+                    end_open = True
+                    end_date = None
+                li = models.RightsStatementLicense.objects.create(
+                    rightsstatement=rights,
+                    licenseterms=terms,
+                    licenseapplicablestartdate=start_date,
+                    licenseapplicableenddate=end_date,
+                    licenseenddateopen=end_open,
+                )
+                id_type = statement.findtext('.//premis:licenseDocumentationIdentifierType', namespaces=ns.NSMAP) or ""
+                id_value = statement.findtext('.//premis:licenseDocumentationIdentifierValue', namespaces=ns.NSMAP) or ""
+                id_role = statement.findtext('.//premis:licenseDocumentationRole', namespaces=ns.NSMAP) or ""
+                models.RightsStatementLicenseDocumentationIdentifier.objects.create(
+                    rightsstatementlicense=li,
+                    licensedocumentationidentifiertype=id_type,
+                    licensedocumentationidentifiervalue=id_value,
+                    licensedocumentationidentifierrole=id_role,
+                )
+                note = statement.findtext('.//premis:licenseNote', namespaces=ns.NSMAP) or ""
+                models.RightsStatementLicenseNote.objects.create(
+                    rightsstatementlicense=li,
+                    licensenote=note,
+                )
+            elif rights_basis == 'Statute':
+                jurisdiction = statement.findtext('.//premis:statuteJurisdiction', namespaces=ns.NSMAP) or ""
+                citation = statement.findtext('.//premis:statuteCitation', namespaces=ns.NSMAP) or ""
+                det_date = statement.findtext('.//premis:statuteInformationDeterminationDate', namespaces=ns.NSMAP) or ""
+                start_date = statement.findtext('.//premis:statuteApplicableDates/premis:startDate', namespaces=ns.NSMAP) or ""
+                end_date = statement.findtext('.//premis:statuteApplicableDates/premis:endDate', namespaces=ns.NSMAP) or ""
+                end_open = False
+                if end_date == 'OPEN':
+                    end_open = True
+                    end_date = None
+                st = models.RightsStatementStatuteInformation.objects.create(
+                    rightsstatement=rights,
+                    statutejurisdiction=jurisdiction,
+                    statutecitation=citation,
+                    statutedeterminationdate=det_date,
+                    statuteapplicablestartdate=start_date,
+                    statuteapplicableenddate=end_date,
+                    statuteenddateopen=end_open,
+                )
+                id_type = statement.findtext('.//premis:statuteDocumentationIdentifierType', namespaces=ns.NSMAP) or ""
+                id_value = statement.findtext('.//premis:statuteDocumentationIdentifierValue', namespaces=ns.NSMAP) or ""
+                id_role = statement.findtext('.//premis:statuteDocumentationRole', namespaces=ns.NSMAP) or ""
+                models.RightsStatementStatuteDocumentationIdentifier.objects.create(
+                    rightsstatementstatute=st,
+                    statutedocumentationidentifiertype=id_type,
+                    statutedocumentationidentifiervalue=id_value,
+                    statutedocumentationidentifierrole=id_role,
+                )
+                note = statement.findtext('.//premis:statuteNote', namespaces=ns.NSMAP) or ""
+                models.RightsStatementStatuteInformationNote.objects.create(
+                    rightsstatementstatute=st,
+                    statutenote=note,
+                )
+            elif rights_basis in ('Donor', 'Policy', 'Other'):
+                other_basis = statement.findtext('.//premis:otherRightsBasis', namespaces=ns.NSMAP) or "Other"
+                start_date = statement.findtext('.//premis:otherRightsApplicableDates/premis:startDate', namespaces=ns.NSMAP) or ""
+                end_date = statement.findtext('.//premis:otherRightsApplicableDates/premis:endDate', namespaces=ns.NSMAP) or ""
+                end_open = False
+                if end_date == 'OPEN':
+                    end_open = True
+                    end_date = None
+                ot = models.RightsStatementOtherRightsInformation.objects.create(
+                    rightsstatement=rights,
+                    otherrightsbasis=other_basis,
+                    otherrightsapplicablestartdate=start_date,
+                    otherrightsapplicableenddate=end_date,
+                    otherrightsenddateopen=end_open,
+                )
+                id_type = statement.findtext('.//premis:otherRightsDocumentationIdentifierType', namespaces=ns.NSMAP) or ""
+                id_value = statement.findtext('.//premis:otherRightsDocumentationIdentifierValue', namespaces=ns.NSMAP) or ""
+                id_role = statement.findtext('.//premis:otherRightsDocumentationRole', namespaces=ns.NSMAP) or ""
+                models.RightsStatementOtherRightsDocumentationIdentifier.objects.create(
+                    rightsstatementotherrights=ot,
+                    otherrightsdocumentationidentifiertype=id_type,
+                    otherrightsdocumentationidentifiervalue=id_value,
+                    otherrightsdocumentationidentifierrole=id_role,
+                )
+                note = statement.findtext('.//premis:otherRightsNote', namespaces=ns.NSMAP) or ""
+                models.RightsStatementOtherRightsInformationNote.objects.create(
+                    rightsstatementotherrights=ot,
+                    otherrightsnote=note,
                 )
 
             # Parse rightsGranted
             rights_act = statement.findtext('.//premis:rightsGranted/premis:act', namespaces=ns.NSMAP) or ""
-            rights_start_date = statement.findtext('.//premis:rightsGranted/premis:termOfRestriction/premis:startDate', namespaces=ns.NSMAP) or ""
-            rights_end_date = statement.findtext('.//premis:rightsGranted/premis:termOfRestriction/premis:endDate', namespaces=ns.NSMAP) or ""
+            rights_start_date = statement.findtext('.//premis:rightsGranted/*/premis:startDate', namespaces=ns.NSMAP) or ""
+            rights_end_date = statement.findtext('.//premis:rightsGranted/*/premis:endDate', namespaces=ns.NSMAP) or ""
             rights_end_open = False
             if rights_end_date == 'OPEN':
                 rights_end_date = None
