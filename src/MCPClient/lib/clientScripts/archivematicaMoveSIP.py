@@ -21,30 +21,32 @@
 # @subpackage archivematicaClientScript
 # @author Joseph Perry <joseph@artefactual.com>
 import os
-import subprocess
-import shlex
+import shutil
 import sys
-import MySQLdb
 sys.path.append("/usr/lib/archivematica/archivematicaCommon")
 import databaseInterface
-from executeOrRunSubProcess import executeOrRun
 from fileOperations import renameAsSudo
 
-def updateDB(dst, sipUUID):
-    sql =  """UPDATE SIPs SET currentPath='""" + MySQLdb.escape_string(dst) + """' WHERE sipUUID='""" + sipUUID + """';"""
-    databaseInterface.runSQL(sql)
 
 def moveSIP(src, dst, sipUUID, sharedDirectoryPath):
-    # os.rename(src, dst)
+    # Prepare paths
     if src.endswith("/"):
         src = src[:-1]
-
     dest = dst.replace(sharedDirectoryPath, "%sharedPath%", 1)
     if dest.endswith("/"):
         dest = os.path.join(dest, os.path.basename(src))
     if dest.endswith("/."):
         dest = os.path.join(dest[:-1], os.path.basename(src))
-    updateDB(dest + "/", sipUUID)
+
+    # Update DB
+    sql = """UPDATE SIPs SET currentPath=%s WHERE sipUUID=%s;"""
+    databaseInterface.runSQL(sql, (dest + "/", sipUUID))
+
+    # If destination already exists, delete it with warning
+    dest_path = os.path.join(dst, os.path.basename(src))
+    if os.path.exists(dest_path):
+        print >>sys.stderr, dest_path, 'exists, deleting'
+        shutil.rmtree(dest_path)
 
     renameAsSudo(src, dst)
 
