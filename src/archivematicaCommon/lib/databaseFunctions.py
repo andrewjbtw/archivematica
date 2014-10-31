@@ -92,6 +92,11 @@ def insertIntoEvents(fileUUID="", eventIdentifierUUID="", eventType="", eventDat
     event.save()
 
 def insertIntoDerivations(sourceFileUUID="", derivedFileUUID="", relatedEventUUID=""):
+    if not sourceFileUUID:
+        raise ValueError("sourceFileUUID must be specified")
+    if not derivedFileUUID:
+        raise ValueError("derivedFileUUID must be specified")
+
     derivation = Derivation(source_file_id=sourceFileUUID,
                             derived_file_id=derivedFileUUID,
                             event_id=relatedEventUUID)
