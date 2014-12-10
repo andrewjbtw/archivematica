@@ -1,3 +1,5 @@
+window.elasticsearch_cache = {};
+
 function renderBacklogSearchForm(openInNewTab) {
   // create new form instance, providing a single row of default data
   var search = new advancedSearch.AdvancedSearchView({
@@ -62,14 +64,64 @@ function renderBacklogSearchForm(openInNewTab) {
       null,
       function (data, status) {
         if (status == 'success') {
+          // Cache ES response so it can be looked up from SIP arrange later
+          // without needing to hit up ES a second time
+          cacheBacklogData(data);
           // Originals browser from ingest_file_browser.js
           // Search information needs to go here
-          originals_browser.display_data(data)
+          originals_browser.display_data(transformElasticsearchResponse(data));
         } else {
           console.log('Failed to get transfer backlog data from '+query_url);
         }
       }
     );
+  }
+
+  function cacheBacklogData(data) {
+    var record;
+    for (var i in data) {
+      record = data[i];
+      // Clone the record, then decode the base64-encoded data to
+      // match the original ES response
+      var copy = $.extend({}, record);
+      copy.relative_path = Base64.decode(copy.relative_path);
+      window.elasticsearch_cache[record.relative_path] = copy;
+    }
+  }
+
+  function transformElasticsearchResponse(data) {
+    var record;
+    var return_list = [];
+    for (var i in data) {
+      record = data[i];
+      directoryToDirectoryTree(record.relative_path, return_list, record.not_draggable);
+    }
+    return return_list;
+  }
+
+  function directoryToDirectoryTree(path, return_list, not_draggable) {
+    var parts = path.split('/');
+    if (['logs', 'metadata'].indexOf(parts[0]) != -1) {
+      var not_draggable = true;
+    }
+    if (parts.length == 1) {
+      return_list.push({
+        name: parts[0],
+        not_draggable: not_draggable
+      });
+    } else {
+      node = parts[0];
+      others = parts.slice(1, -1).join('/');
+      if (return_list.length == 0 || return_list[return_list.length - 1]['name'] != node) {
+        return_list.push({
+          name: node,
+          not_draggable: not_draggable,
+          children: []
+        });
+      }
+      directoryToDirectoryTree(others, return_list[return_list.length - 1]['children'], not_draggable);
+      return_list[return_list.length - 1]['not_draggable'] = return_list[return_list.length - 1]['not_draggable'] && not_draggable;
+    }
   }
 
   // submit logic
