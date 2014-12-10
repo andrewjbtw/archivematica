@@ -474,13 +474,15 @@ def transfer_backlog(request):
     return_list = []
     # _es_results_to_directory_tree requires that paths MUST be sorted
     results.sort(key=lambda x: x['relative_path'])
-    for path in results:
+    for record in results:
         # If a path is in SIPArrange.original_path, then it shouldn't be draggable
         not_draggable = False
         if models.SIPArrange.objects.filter(
-            original_path__endswith=path['relative_path']).exists():
+            original_path__endswith=record['relative_path']).exists():
             not_draggable = True
-        _es_results_to_directory_tree(path['relative_path'], return_list, not_draggable=not_draggable)
+        record['draggable'] = not_draggable
+        record['relative_path'] = base64.b64encode(record['relative_path'])
+        return_list.append(record)
 
     # retun JSON response
     return helpers.json_response(return_list)
